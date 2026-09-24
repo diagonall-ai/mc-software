@@ -4,7 +4,7 @@
  * This file is intentionally a template stub.
  *
  * Read first:
- * - .agents/skills/cloudflare/SKILL.md
+ * - .claude/skills/cloudflare/SKILL.md
  *
  * Verify with current docs before adding runtime code:
  * - https://developers.cloudflare.com/workflows/index.md

@@ -6,7 +6,7 @@ These are examples, not active app features.
 
 Primary repo skill:
 
-- `.agents/skills/cloudflare/SKILL.md`
+- `.claude/skills/cloudflare/SKILL.md`
 
 Primary documentation rule:
 
@@ -35,7 +35,7 @@ Suggested file:
 
 Skill and docs:
 
-- skill: `.agents/skills/cloudflare/SKILL.md`
+- skill: `.claude/skills/cloudflare/SKILL.md`
 - docs: `https://developers.cloudflare.com/sandbox/index.md`
 - docs: `https://developers.cloudflare.com/sandbox/api/index.md`
 - docs index for LLMs: `https://developers.cloudflare.com/sandbox/llms.txt`
@@ -66,7 +66,7 @@ Suggested file:
 
 Skill and docs:
 
-- skill: `.agents/skills/cloudflare/SKILL.md`
+- skill: `.claude/skills/cloudflare/SKILL.md`
 - docs: `https://developers.cloudflare.com/browser-rendering/index.md`
 - docs index for LLMs: `https://developers.cloudflare.com/browser-rendering/llms.txt`
 
@@ -95,7 +95,7 @@ Suggested file:
 
 Skill and docs:
 
-- skill: `.agents/skills/cloudflare/SKILL.md`
+- skill: `.claude/skills/cloudflare/SKILL.md`
 - docs: `https://developers.cloudflare.com/durable-objects/index.md`
 - docs: `https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/index.md`
 - docs index for LLMs: `https://developers.cloudflare.com/durable-objects/llms.txt`
@@ -124,7 +124,7 @@ Suggested file:
 
 Skill and docs:
 
-- skill: `.agents/skills/cloudflare/SKILL.md`
+- skill: `.claude/skills/cloudflare/SKILL.md`
 - docs: `https://developers.cloudflare.com/workflows/index.md`
 - docs: `https://developers.cloudflare.com/workflows/build/trigger-workflows/index.md`
 - docs index for LLMs: `https://developers.cloudflare.com/workflows/llms.txt`

@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "local": {
-      "url": "http://localhost:8889/api/mcp"
-    }
-  }
-}

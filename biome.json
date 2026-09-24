@@ -51,9 +51,7 @@
     "includes": [
       "**",
       "!**/node_modules",
-      "!**/.agents",
       "!**/.claude",
-      "!**/.codex",
       "!**/app/routeTree.gen.ts",
       "!**/.wrangler",
       "!**/dist",
