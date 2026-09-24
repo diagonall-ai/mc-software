@@ -46,6 +46,14 @@ export const Route = createFileRoute("/mcp/login")({
 	component: McpLoginPage,
 });
 
+// What each OAuth scope lets the agent do, in the words of the person approving it.
+const SCOPE_LABELS: Record<string, string> = {
+	openid: "Vous identifier",
+	profile: "Voir votre nom et votre photo",
+	email: "Voir votre adresse email",
+	offline_access: "Rester connectée sans vous redemander",
+};
+
 function buildAuthorizeUrl(search: McpSearchParams): string {
 	const params = new URLSearchParams();
 	for (const [key, value] of Object.entries(search)) {
@@ -67,7 +75,7 @@ function McpLoginPage() {
 			<div className="flex min-h-screen items-center justify-center px-4">
 				<Card className="w-full max-w-sm">
 					<CardContent className="py-8 text-center text-muted-foreground">
-						Loading...
+						Chargement…
 					</CardContent>
 				</Card>
 			</div>
@@ -106,32 +114,27 @@ function McpContextBanner({ search }: { search: McpSearchParams }) {
 			<CardContent className="flex items-start gap-3 py-4">
 				<Shield className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
 				<div className="min-w-0 space-y-1">
-					<p className="text-sm font-medium">Authorization request</p>
+					<p className="text-sm font-medium">Demande d’autorisation</p>
 					<p className="text-sm text-muted-foreground">
-						An application
+						Une application
 						{search.client_id ? (
 							<>
 								{" "}
 								(<span className="font-mono text-xs">{search.client_id}</span>)
 							</>
 						) : null}{" "}
-						is requesting access to your {PROJECT_NAME} account.
+						demande l’accès à votre compte {PROJECT_NAME}.
 					</p>
 					{scopes.length > 0 && (
 						<div className="pt-1">
 							<p className="text-xs font-medium text-muted-foreground">
-								Requested scopes
+								Elle pourra :
 							</p>
-							<div className="mt-1 flex flex-wrap gap-1">
+							<ul className="mt-1 list-disc space-y-0.5 pl-4 text-sm">
 								{scopes.map((scope) => (
-									<span
-										key={scope}
-										className="inline-block rounded-md bg-background px-2 py-0.5 font-mono text-xs text-foreground"
-									>
-										{scope}
-									</span>
+									<li key={scope}>{SCOPE_LABELS[scope] ?? scope}</li>
 								))}
-							</div>
+							</ul>
 						</div>
 					)}
 				</div>
@@ -152,8 +155,8 @@ function AuthenticatedContinueCard({ search }: { search: McpSearchParams }) {
 				<CardTitle className="text-2xl">{PROJECT_NAME}</CardTitle>
 				<CardDescription>
 					{hasAuthorizationContext
-						? "You are signed in. Continue to authorize this application."
-						: "You are already signed in."}
+						? "Vous êtes connecté. Continuez pour autoriser cette application."
+						: "Vous êtes déjà connecté."}
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
@@ -172,7 +175,7 @@ function AuthenticatedContinueCard({ search }: { search: McpSearchParams }) {
 						render={<a href={authorizeUrl} />}
 					>
 						<LogIn className="size-4" />
-						Continue
+						Continuer
 					</Button>
 				) : (
 					<Button
@@ -181,7 +184,7 @@ function AuthenticatedContinueCard({ search }: { search: McpSearchParams }) {
 						render={<a href="/dashboard" />}
 						variant="outline"
 					>
-						Go to dashboard
+						Aller au tableau de bord
 					</Button>
 				)}
 			</CardContent>
