@@ -78,7 +78,7 @@ The profile is built the way every feature should be. Copy it:
 - Read bindings and secrets with `import { env } from "cloudflare:workers"`, in server code only.
 - A new Durable Object class is exported from `app/server.ts` and gets a binding and a new migration tag in `wrangler.jsonc`. Never edit a migration that was deployed.
 - After changing bindings, regenerate the types: `pnpm wrangler types worker-configuration.d.ts -c wrangler.jsonc --include-runtime false`, then `pnpm biome format --write worker-configuration.d.ts`.
-- Secrets (`BETTER_AUTH_SECRET`, `SUPER_ADMIN_SIGNUP_PASSWORD`, each integration's keys, and `SITE_URL` with `TRUSTED_ORIGINS` only for a custom domain) live in `.dev.vars` locally. For production, pipe each value in: `printf '%s' 'value' | pnpm wrangler secret put NAME`. Without a pipe, Wrangler stores an empty value.
+- Secrets (`BETTER_AUTH_SECRET`, `SUPER_ADMIN_SIGNUP_PASSWORD`, `SITE_URL` (the public address, which MCP sign-in needs), each integration's keys, and `TRUSTED_ORIGINS` for extra addresses) live in `.dev.vars` locally. For production, pipe each value in: `printf '%s' 'value' | pnpm wrangler secret put NAME`. Without a pipe, Wrangler stores an empty value.
 - Scheduled jobs: `triggers.crons` in `wrangler.jsonc`, handled in `app/worker/scheduled.ts` (see its header). Automatic e-mails need Workers Paid and a company domain; on Free, show the information in the app and offer a `mailto:` link.
 - `pnpm run doctor` checks the local setup.
 

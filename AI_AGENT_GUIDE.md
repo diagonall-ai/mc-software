@@ -115,7 +115,7 @@ curl -X POST "http://localhost:3934/api/mcp" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"call-route","arguments":{"method":"GET","path":"/api/profile"}}}'
 ```
 
-`pnpm smoke` (dev server running, seed account) runs the whole check end to end: API keys in both headers, the MCP OAuth flow with a refresh token, the MCP tools, and 401s for bad credentials. For a deployed app: `EMAIL=... PASSWORD=... pnpm smoke https://your-app.workers.dev`.
+`pnpm smoke` (dev server running, seed account) runs the whole check end to end, on both MCP protocol versions: API keys in both headers, the MCP OAuth flow (sign-in, consent, refresh token), the MCP tools, and 401s for bad credentials. For a deployed app: `EMAIL=... PASSWORD=... pnpm smoke https://your-app.workers.dev`.
 
 Third-party integrations are tested against the real service before they reach the app:
 

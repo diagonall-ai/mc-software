@@ -66,7 +66,7 @@ pnpm deploy:dry-run
 pnpm run deploy
 ```
 
-Pipe secret values in: without a terminal, `wrangler secret put` stores an empty value. `SITE_URL` and `TRUSTED_ORIGINS` are only needed for a custom domain. The app runs on the Workers Free plan; the MCP code sandbox (`worker_loaders` in `wrangler.jsonc`) needs Workers Paid. Do not store secrets in `wrangler.jsonc`.
+Pipe secret values in: without a terminal, `wrangler secret put` stores an empty value. After the first deploy, pipe the printed address into `SITE_URL` the same way: MCP sign-in (OAuth) needs it. `TRUSTED_ORIGINS` is only for extra addresses. The app runs on the Workers Free plan; the MCP code sandbox (`worker_loaders` in `wrangler.jsonc`) needs Workers Paid. Do not store secrets in `wrangler.jsonc`.
 
 ## Project Structure
 

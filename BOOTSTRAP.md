@@ -67,7 +67,7 @@ TRUSTED_ORIGINS=http://localhost:3934
 If Better Auth plugins change, regenerate the auth schema first:
 
 ```bash
-pnpm dlx auth@latest generate --config app/lib/auth-server.ts --output app/db/auth.schema.ts --yes
+NODE_OPTIONS=--unhandled-rejections=warn pnpm dlx auth@latest generate --config app/lib/auth-server.ts --output app/db/auth.schema.ts --yes
 ```
 
 Generate Drizzle migrations:
@@ -154,7 +154,7 @@ openssl rand -base64 32 | pnpm wrangler secret put BETTER_AUTH_SECRET
 printf '%s' 'soleil-velo-42' | pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD
 ```
 
-The second value is the app's invitation code: a new one per app, easy to type. `SITE_URL` and `TRUSTED_ORIGINS` are only needed for a custom domain; on workers.dev, sign-in trusts the address the app is served from. The Worker Loader binding (MCP `execute`) stays commented out in `wrangler.jsonc` unless the account is on Workers Paid.
+The second value is the app's invitation code: a new one per app, easy to type. After the first deploy, pipe the printed address into `SITE_URL` (`printf '%s' 'https://<app>.<subdomain>.workers.dev' | pnpm wrangler secret put SITE_URL`): sign-in works without it, but MCP sign-in (OAuth) binds its tokens to it. `TRUSTED_ORIGINS` is only for extra addresses. The Worker Loader binding (MCP `execute`) stays commented out in `wrangler.jsonc` unless the account is on Workers Paid.
 
 On the first deploy of an account without a workers.dev subdomain, Wrangler prints a link to register one: open it, pick a name, and deploy again.
 
@@ -179,7 +179,7 @@ pnpm run deploy
 
 - If auth says `BETTER_AUTH_SECRET` is missing, `.dev.vars` or Worker secrets are not configured for the runtime being used.
 - If D1 queries fail locally, confirm local migrations were applied with `--local`.
-- If sign-up says the invitation code is wrong, confirm `SUPER_ADMIN_SIGNUP_PASSWORD` was set with a pipe (`pnpm wrangler secret list` shows it exists). On a custom domain, confirm `SITE_URL` and `TRUSTED_ORIGINS` match it.
+- If sign-up says the invitation code is wrong, confirm `SUPER_ADMIN_SIGNUP_PASSWORD` was set with a pipe (`pnpm wrangler secret list` shows it exists). If MCP clients cannot sign in, confirm `SITE_URL` is the exact public address (and add a custom domain to `TRUSTED_ORIGINS`).
 - If the deploy fails with error 10195, the account is on the Free plan and `worker_loaders` is enabled: comment it out again.
 - If a route needs first-paint data, put it in the TanStack loader and return any dashboard header metadata from that loader.
 - If `pnpm run doctor` reports multiple `DB` bindings, `d1 create --update-config` appended a second one: keep a single `DB` entry with the new name and id.
