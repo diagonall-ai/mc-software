@@ -36,12 +36,7 @@
  *   An uploaded .xlsx file must first be saved as a Google Sheet.
  */
 import { Effect, Encoding, Schema } from "effect";
-import {
-	type CallOptions,
-	cachedToken,
-	IntegrationError,
-	request,
-} from "./http";
+import { type CallOptions, IntegrationError, request, withToken } from "./http";
 
 const SERVICE = "Google Sheets";
 const BASE_URL = "https://sheets.googleapis.com/v4";
@@ -82,58 +77,49 @@ export class GoogleSheets {
 	}
 
 	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
-		return this.#accessToken().pipe(
-			Effect.flatMap((token) =>
-				request({
-					...options,
-					headers: { Authorization: `Bearer ${token}` },
-					schema,
-					service: SERVICE,
-					url: `${BASE_URL}${path}`,
-				}),
+		return Schema.decodeUnknownEffect(ServiceAccountKey)(
+			this.#serviceAccountKey,
+		).pipe(
+			Effect.mapError(() =>
+				invalidKey("copiez tout le fichier JSON téléchargé dans le secret."),
+			),
+			Effect.flatMap((key) =>
+				withToken(`google:${key.client_email}`, accessToken(key), (token) =>
+					request({
+						...options,
+						headers: { Authorization: `Bearer ${token}` },
+						schema,
+						service: SERVICE,
+						url: `${BASE_URL}${path}`,
+					}),
+				),
 			),
 		);
 	}
-
-	#accessToken() {
-		const keyFile = this.#serviceAccountKey;
-		return Effect.gen(function* () {
-			const key = yield* Schema.decodeUnknownEffect(ServiceAccountKey)(
-				keyFile,
-			).pipe(
-				Effect.mapError(() =>
-					invalidKey("copiez tout le fichier JSON téléchargé dans le secret."),
-				),
-			);
-			return yield* cachedToken(
-				`google:${key.client_email}`,
-				Effect.gen(function* () {
-					const assertion = yield* Effect.tryPromise({
-						try: () => signJwt(key.client_email, key.private_key),
-						catch: () => invalidKey("la clé privée est illisible."),
-					});
-					const token = yield* request({
-						form: {
-							assertion,
-							grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-						},
-						method: "POST",
-						schema: Schema.Struct({
-							access_token: Schema.String,
-							expires_in: Schema.Number,
-						}),
-						service: SERVICE,
-						url: TOKEN_URL,
-					});
-					return {
-						expiresInSeconds: token.expires_in,
-						value: token.access_token,
-					};
-				}),
-			);
-		});
-	}
 }
+
+const accessToken = (key: { client_email: string; private_key: string }) =>
+	Effect.gen(function* () {
+		const assertion = yield* Effect.tryPromise({
+			try: () => signJwt(key.client_email, key.private_key),
+			catch: () => invalidKey("la clé privée est illisible."),
+		});
+		const token = yield* request({
+			form: {
+				assertion,
+				grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+			},
+			method: "POST",
+			retries: 3,
+			schema: Schema.Struct({
+				access_token: Schema.String,
+				expires_in: Schema.Number,
+			}),
+			service: SERVICE,
+			url: TOKEN_URL,
+		});
+		return { expiresInSeconds: token.expires_in, value: token.access_token };
+	});
 
 const invalidKey = (hint: string) =>
 	new IntegrationError({

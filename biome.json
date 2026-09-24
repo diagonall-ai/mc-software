@@ -15,6 +15,22 @@
       },
       "suspicious": {
         "noArrayIndexKey": "off"
+      },
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "effect": "Effect stays inside app/integrations/: call a shell through runIntegration, which returns a promise. See INTEGRATIONS.md."
+            },
+            "patterns": [
+              {
+                "group": ["effect/**"],
+                "message": "Effect stays inside app/integrations/: call a shell through runIntegration, which returns a promise. See INTEGRATIONS.md."
+              }
+            ]
+          }
+        }
       }
     }
   },
@@ -39,6 +55,16 @@
           "suspicious": {
             "noDocumentCookie": "off",
             "noDoubleEquals": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["app/integrations/**", "scripts/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off"
           }
         }
       }

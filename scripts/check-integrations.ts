@@ -12,7 +12,7 @@ registerHooks({
 			? next(`${specifier}.ts`, context)
 			: next(specifier, context),
 });
-const { request } = await import("../app/integrations/http.ts");
+const { request, runIntegration } = await import("../app/integrations/http.ts");
 const { signJwt } = await import("../app/integrations/google-sheets.ts");
 const { Tableau } = await import("../app/integrations/tableau.ts");
 
@@ -22,10 +22,11 @@ const reply = (...responses: Response[]) => {
 	globalThis.fetch = async () =>
 		responses[Math.min(calls++, responses.length - 1)].clone();
 };
-const outcome = async (retries?: number) => {
+const outcome = async (retries?: number, method?: "POST") => {
 	const result = await Effect.runPromise(
 		Effect.result(
 			request({
+				method,
 				retries,
 				schema: Schema.Struct({ ok: Schema.Boolean }),
 				service: "Test",
@@ -61,6 +62,16 @@ assert.equal(calls, 1);
 reply(status(500));
 assert.equal(await outcome(1), "server_error");
 assert.equal(calls, 2);
+
+// Other methods are not retried unless they opt in: a write never runs twice.
+reply(status(503));
+assert.equal(await outcome(undefined, "POST"), "server_error");
+assert.equal(calls, 1);
+
+// runIntegration gives up at its time limit, with a message for the user.
+await assert.rejects(runIntegration(Effect.never, { timeout: "20 millis" }), {
+	code: "SERVICE_UNAVAILABLE",
+});
 
 // A body that does not match the schema fails loudly.
 reply(Response.json({ ok: "yes" }));

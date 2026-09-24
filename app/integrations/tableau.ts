@@ -38,13 +38,7 @@
  *   missing when the list is empty, and page numbers are strings.
  */
 import { Effect, Schema } from "effect";
-import {
-	type CallOptions,
-	cachedToken,
-	forgetToken,
-	type IntegrationError,
-	request,
-} from "./http";
+import { type CallOptions, request, withToken } from "./http";
 
 // 3.25 works on Tableau Cloud and on Tableau Server 2025.1 or later. For an
 // older Server, lower it (error 404001 means Tableau does not know the version).
@@ -104,65 +98,41 @@ export class Tableau {
 		});
 	}
 
-	#call<A>(
-		path: string,
-		schema: Schema.Decoder<A>,
-		options: CallOptions = {},
-		signInAgain = true,
-	): Effect.Effect<A, IntegrationError> {
-		const { host } = this.#credentials;
-		return this.#session().pipe(
-			Effect.flatMap(({ token, siteId }) =>
+	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
+		const { host, site, tokenName, tokenSecret } = this.#credentials;
+		const signIn = request({
+			json: {
+				credentials: {
+					personalAccessTokenName: tokenName,
+					personalAccessTokenSecret: tokenSecret,
+					site: { contentUrl: site },
+				},
+			},
+			method: "POST",
+			retries: 3,
+			schema: SignIn,
+			service: "Tableau",
+			url: `${host}/api/${API_VERSION}/auth/signin`,
+		}).pipe(
+			Effect.map(({ credentials }) => ({
+				expiresInSeconds: 110 * 60,
+				value: { siteId: credentials.site.id, token: credentials.token },
+			})),
+		);
+		// When another Worker instance signs in with the same PAT, our session
+		// ends and withToken signs in again.
+		// ponytail: share one session through a Durable Object if it happens often.
+		return withToken(
+			`tableau:${host}:${site}:${tokenName}`,
+			signIn,
+			({ siteId, token }) =>
 				request({
 					...options,
 					headers: { "X-Tableau-Auth": token },
 					schema,
 					service: "Tableau",
 					url: `${host}/api/${API_VERSION}/sites/${siteId}${path}`,
-				}).pipe(
-					// Another Worker instance signing in with the same PAT ended this
-					// session: sign in again, once.
-					// ponytail: share one session through a Durable Object if it
-					// happens often.
-					Effect.catchIf(
-						(error) => signInAgain && error.reason === "unauthorized",
-						() => {
-							forgetToken(this.#cacheKey());
-							return this.#call(path, schema, options, false);
-						},
-					),
-				),
-			),
+				}),
 		);
-	}
-
-	#session() {
-		const { host, site, tokenName, tokenSecret } = this.#credentials;
-		return cachedToken(
-			this.#cacheKey(),
-			request({
-				json: {
-					credentials: {
-						personalAccessTokenName: tokenName,
-						personalAccessTokenSecret: tokenSecret,
-						site: { contentUrl: site },
-					},
-				},
-				method: "POST",
-				schema: SignIn,
-				service: "Tableau",
-				url: `${host}/api/${API_VERSION}/auth/signin`,
-			}).pipe(
-				Effect.map(({ credentials }) => ({
-					expiresInSeconds: 110 * 60,
-					value: { siteId: credentials.site.id, token: credentials.token },
-				})),
-			),
-		);
-	}
-
-	#cacheKey() {
-		const { host, site, tokenName } = this.#credentials;
-		return `tableau:${host}:${site}:${tokenName}`;
 	}
 }

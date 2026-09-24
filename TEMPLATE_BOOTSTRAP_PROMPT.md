@@ -33,7 +33,7 @@ Install what is missing, preferring installers that do not need an admin passwor
 - pnpm: use the official standalone installer, which works without Node.js.
   - macOS and Linux: `curl -fsSL https://get.pnpm.io/install.sh | sh -`
   - Windows (PowerShell): `Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression`
-- Node.js: the template needs an LTS release, 22.12 or newer. If Node.js is missing or older, install it with `pnpm env use --global lts`.
+- Node.js: the template needs an LTS release, 22.18 or newer. If Node.js is missing or older, install it with `pnpm env use --global lts`.
 - git:
   - macOS: run `xcode-select --install`, tell the user to click "Install" in the window that opens, and wait until `git --version` works.
   - Windows: `winget install --id Git.Git -e --source winget`

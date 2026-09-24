@@ -32,11 +32,13 @@ export class Pennylane {
 Every call gets, from `request` in `http.ts`:
 
 - a 15-second timeout per attempt;
-- up to 3 retries with exponential backoff and jitter on network errors, 429 and 5xx, waiting for `Retry-After` when the service sends one (up to 30 seconds);
+- for GET, up to 3 retries with exponential backoff and jitter on network errors, 429 and 5xx, waiting for `Retry-After` when the service sends one (up to 30 seconds). Other methods are not retried unless they pass `retries`, so a write never runs twice;
 - response validation with Effect Schema: only the declared fields come back, and a changed API fails loudly;
 - one error type, `IntegrationError`, with a `reason` and a French `message` the user can read.
 
-Services that trade credentials for a short-lived token (Zendesk, Google Sheets, Tableau) cache it with `cachedToken`, shared by the requests one Worker instance serves.
+`runIntegration` then gives up after 30 seconds in total, so a page never hangs on a slow service.
+
+Services that trade credentials for a short-lived token (Zendesk, Google Sheets, Tableau) go through `withToken`: it reuses the token across the requests one Worker instance serves, and when the service rejects it, fetches a new one and tries once more before blaming the key.
 
 SFTP is not HTTP: `sftp.ts` uses [edgeport](https://github.com/gmitch215/edgeport), an SSH and SFTP client written for Workers, and gets the same retries and errors through `retryTransient` and `IntegrationError`.
 
@@ -88,7 +90,7 @@ When a call fails, the `reason` says why:
 1. Find the endpoint in the docs linked at the top of the shell. Prefer the OpenAPI definition when there is one.
 2. Copy the example method and name it after what it does: `listSuppliers`, `getInvoice`, `exportTickets`.
 3. Declare only the fields the app uses. `Schema.NullOr(...)` for fields that can be `null`, `Schema.optional(...)` for fields that can be missing. Keep money amounts as strings, and convert to cents before adding them.
-4. Stay read-only. Before adding a method that writes, sends a message or spends credits, ask the user. Pass `retries: 0` for writes that must not run twice.
+4. Stay read-only. Before adding a method that writes, sends a message or spends credits, ask the user. Writes are never retried by default; a POST that only reads, like a HubSpot search, can pass `retries: 3`.
 5. Take plain JSON arguments (text, numbers, booleans, lists, objects): no `Date` or class instances, so the test command, oRPC and MCP can all pass them.
 6. Return one page and its cursor. Let the caller loop (below).
 7. Add the scope or permission the endpoint needs to the header comment.
@@ -113,22 +115,26 @@ supplierInvoices: orpc.suppliers.invoices.handler(async ({ context, input }) => 
 }),
 ```
 
-`runIntegration` returns the data, or logs the technical detail (`pnpm wrangler tail` in production) and throws an `ORPCError` carrying the French message, ready for a toast.
+`runIntegration` returns the data, or logs the technical detail (`pnpm wrangler tail` in production) and throws an `ORPCError` carrying the French message, ready for a toast. It stops after 30 seconds; a background job can allow more with `runIntegration(effect, { timeout: "5 minutes" })`.
 
-Several calls in a row read like async code with `Effect.gen`:
+Effect stays inside `app/integrations/`: Biome rejects an `effect` import anywhere else. App code only sees the promises `runIntegration` returns. So several calls in a row, such as every page of a list, become one more shell method, written with `Effect.gen` (it reads like async code):
 
 ```ts
-const allInvoices = Effect.gen(function* () {
-  const pennylane = Pennylane.init({ apiToken: env.PENNYLANE_API_TOKEN });
-  const invoices: PennylaneSupplierInvoice[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = yield* pennylane.listSupplierInvoices({ cursor, limit: 100 });
-    invoices.push(...page.items);
-    cursor = page.next_cursor ?? undefined;
-  } while (cursor);
-  return invoices;
-});
+// In pennylane.ts
+listAllSupplierInvoices(filter?: PennylaneFilter[]) {
+  const page = (cursor?: string) =>
+    this.listSupplierInvoices({ cursor, filter, limit: 100 });
+  return Effect.gen(function* () {
+    const invoices: PennylaneSupplierInvoice[] = [];
+    let cursor: string | undefined;
+    do {
+      const result = yield* page(cursor);
+      invoices.push(...result.items);
+      cursor = result.next_cursor ?? undefined;
+    } while (cursor);
+    return invoices;
+  });
+}
 ```
 
 The keys belong to the company, not to one user: every signed-in user can read what a shell returns. If some data must stay restricted (finance, HR), ask the user who should see it before building the page.
@@ -140,6 +146,7 @@ Most of these services have tight quotas: Trustpilot about 550 calls a day, Goog
 - copy what the screens need into D1 tables, through a repository in `app/db/`;
 - refresh with a "Actualiser" button that calls a sync procedure, or on a schedule with a Cron Trigger (`triggers.crons` in `wrangler.jsonc` and a `scheduled` handler in the Worker entry);
 - save resume points such as Zendesk's `after_cursor`;
+- give a sync job more time than a page: `runIntegration(effect, { timeout: "5 minutes" })`;
 - mind the Worker limit on outgoing requests per invocation: 50 on the Free plan, 10,000 on Paid.
 
 ## Sources Without An API Shell
@@ -162,6 +169,7 @@ Most of these services have tight quotas: Trustpilot about 550 calls a day, Goog
 ## Effect v4 Notes
 
 - The app pins `effect@4.0.0-rc.117`. Release candidates can still change APIs: upgrade on purpose, then run `pnpm typecheck` and `pnpm integration:check`.
-- An `Effect` is a description of work; nothing runs until `runIntegration` (or `Effect.runPromise`) runs it.
+- An `Effect` is a description of work; nothing runs until `runIntegration` runs it.
+- Only `app/integrations/` and `scripts/` may import `effect`; Biome's `noRestrictedImports` rule enforces it. Effect also brings its own Schema next to the app's zod: use Effect Schema for API responses in the shells, zod everywhere else.
 - v4 names differ from most examples online: `Result` instead of `Either`, `Effect.result`, `Schema.decodeUnknownEffect`, `Schema.Decoder<A>`, `Duration.Input`. See the [v3 to v4 migration guide](https://github.com/Effect-TS/effect-smol/blob/main/MIGRATION.md).
-- `pnpm integration:check` checks retries, error mapping, the Google token signature and Tableau's sign-in against a fake server, without keys. Run it after changing `http.ts`.
+- `pnpm integration:check` checks retries, error mapping, the time limit, the Google token signature and a rejected token being replaced, against a fake server, without keys. Run it after changing `http.ts`.

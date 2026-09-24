@@ -26,7 +26,7 @@ If you are an AI agent, start with [AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md). It 
 
 ## Prerequisites
 
-- Node.js 22.12 or newer
+- Node.js 22.18 or newer
 - pnpm
 - Cloudflare account and Wrangler authentication
 

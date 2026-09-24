@@ -22,7 +22,9 @@
  *   PKCS#8 or OpenSSH key), SFTP_HOST_KEY_FINGERPRINT, and SFTP_PORT if not 22.
  *
  * Facts:
- * - Each call opens a connection, does its work and closes it.
+ * - Each call opens a connection, does its work and closes it. Failed
+ *   connections are retried; a method that writes passes `retries = 0` to
+ *   `#session` so it never runs twice.
  * - The next methods to add: `sftp.readText(path)` for a CSV,
  *   `sftp.readFile(path)` for bytes, `sftp.stat(path)` for size and date.
  * - Key exchange curve25519 or nistp256, ciphers AES-GCM, AES-CTR or ChaCha20.
@@ -88,7 +90,7 @@ export class Sftp {
 		);
 	}
 
-	#session<A>(use: (sftp: SftpSession) => Promise<A>) {
+	#session<A>(use: (sftp: SftpSession) => Promise<A>, retries = 3) {
 		const { host, port, username, password, privateKey, hostKeyFingerprint } =
 			this.#credentials;
 		// Accepts the bare fingerprint or the whole line `ssh-keygen -lf` prints.
@@ -119,6 +121,7 @@ export class Sftp {
 				},
 				catch: (error) => toIntegrationError(error, presented, pinned),
 			}),
+			retries,
 		);
 	}
 }

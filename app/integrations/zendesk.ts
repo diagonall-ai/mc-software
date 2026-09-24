@@ -32,7 +32,7 @@
  *   there.
  */
 import { Effect, Schema } from "effect";
-import { type CallOptions, cachedToken, request } from "./http";
+import { type CallOptions, request, withToken } from "./http";
 
 // Only the fields the app uses. Add one when a screen needs it.
 const TicketExport = Schema.Struct({
@@ -98,41 +98,34 @@ export class Zendesk {
 	}
 
 	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
-		return this.#accessToken().pipe(
-			Effect.flatMap((token) =>
-				request({
-					...options,
-					headers: { Authorization: `Bearer ${token}` },
-					schema,
-					service: "Zendesk",
-					url: `https://${this.#credentials.subdomain}.zendesk.com/api/v2${path}`,
-				}),
-			),
-		);
-	}
-
-	#accessToken() {
 		const { subdomain, clientId, clientSecret } = this.#credentials;
-		return cachedToken(
-			`zendesk:${subdomain}:${clientId}`,
+		const accessToken = request({
+			json: {
+				client_id: clientId,
+				client_secret: clientSecret,
+				expires_in: 1800,
+				grant_type: "client_credentials",
+				scope: "read",
+			},
+			method: "POST",
+			retries: 3,
+			schema: Schema.Struct({ access_token: Schema.String }),
+			service: "Zendesk",
+			url: `https://${subdomain}.zendesk.com/oauth/tokens`,
+		}).pipe(
+			Effect.map(({ access_token }) => ({
+				expiresInSeconds: 1800,
+				value: access_token,
+			})),
+		);
+		return withToken(`zendesk:${subdomain}:${clientId}`, accessToken, (token) =>
 			request({
-				json: {
-					client_id: clientId,
-					client_secret: clientSecret,
-					expires_in: 1800,
-					grant_type: "client_credentials",
-					scope: "read",
-				},
-				method: "POST",
-				schema: Schema.Struct({ access_token: Schema.String }),
+				...options,
+				headers: { Authorization: `Bearer ${token}` },
+				schema,
 				service: "Zendesk",
-				url: `https://${subdomain}.zendesk.com/oauth/tokens`,
-			}).pipe(
-				Effect.map(({ access_token }) => ({
-					expiresInSeconds: 1800,
-					value: access_token,
-				})),
-			),
+				url: `https://${subdomain}.zendesk.com/api/v2${path}`,
+			}),
 		);
 	}
 }

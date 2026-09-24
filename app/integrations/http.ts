@@ -3,8 +3,10 @@
  *
  * Every shell sends its calls through `request`, so they all behave the same:
  * - a timeout on each attempt (15 seconds by default);
- * - automatic retries with exponential backoff and jitter on transient
+ * - GET calls retried with exponential backoff and jitter on transient
  *   failures (network errors, 429 and 5xx), honoring the `Retry-After` header;
+ *   other methods are not retried unless they opt in, so a write never runs
+ *   twice;
  * - one typed error, `IntegrationError`, whose `reason` says what went wrong;
  * - response validation with Effect Schema, so a changed API fails loudly
  *   instead of returning `undefined` fields.
@@ -71,8 +73,9 @@ export interface RequestOptions<A> {
 	/** Per attempt. Defaults to 15 seconds. */
 	readonly timeout?: Duration.Input;
 	/**
-	 * Retries on transient failures. Defaults to 3. Use 0 for calls that must
-	 * not run twice, such as writes that are not idempotent.
+	 * Retries on transient failures: 3 for GET, 0 for other methods, so a write
+	 * never runs twice. A POST that only reads (a search, a token request) can
+	 * pass 3.
 	 */
 	readonly retries?: number;
 }
@@ -155,7 +158,10 @@ export const request = <A>(
 		}),
 	);
 
-	return retryTransient(attempt, options.retries).pipe(
+	return retryTransient(
+		attempt,
+		options.retries ?? (init.method === "GET" ? 3 : 0),
+	).pipe(
 		Effect.flatMap((body) =>
 			Schema.decodeUnknownEffect(options.schema)(body).pipe(
 				Effect.mapError(
@@ -195,14 +201,34 @@ export const retryTransient = <A>(
 	);
 
 /**
- * Runs a shell call from an oRPC handler or server function. Returns the
- * result, or logs the failure and throws an `ORPCError` whose message the
- * user can read.
+ * Runs a shell call from an oRPC handler, a server function or a job. Returns
+ * the result, or logs the failure and throws an `ORPCError` whose message the
+ * user can read. It gives up after 30 seconds so a page never hangs on a slow
+ * service; a background job can allow more: `{ timeout: "5 minutes" }`.
  */
 export const runIntegration = async <A>(
 	effect: Effect.Effect<A, IntegrationError>,
+	options: { timeout?: Duration.Input } = {},
 ): Promise<A> => {
-	const result = await Effect.runPromise(Effect.result(effect));
+	const result = await Effect.runPromise(
+		Effect.result(
+			effect.pipe(
+				Effect.timeoutOrElse({
+					duration: options.timeout ?? "30 seconds",
+					orElse: () =>
+						Effect.fail(
+							new IntegrationError({
+								detail: "runIntegration time limit reached",
+								message:
+									"Le service externe met trop de temps à répondre. Réessayez dans un instant.",
+								reason: "network",
+								service: "integration",
+							}),
+						),
+				}),
+			),
+		),
+	);
 	if (Result.isSuccess(result)) {
 		return result.success;
 	}
@@ -221,19 +247,21 @@ export const basicAuth = (username: string, password: string) =>
 const tokens = new Map<string, { value: unknown; expiresAt: number }>();
 
 /**
- * For services that trade credentials for a short-lived access token: reuses
- * the token until a minute before it expires. The cache is shared by every
- * request the same Worker instance serves, so key it by the credentials,
- * never by the signed-in user.
+ * For services that trade credentials for a short-lived access token: runs
+ * `use` with a token reused until a minute before it expires. When the service
+ * rejects it (401), fetches a new one and tries once more, since the key itself
+ * may be fine. The cache is shared by every request the same Worker instance
+ * serves, so key it by the credentials, never by the signed-in user.
  */
-export const cachedToken = <T>(
+export const withToken = <T, A>(
 	key: string,
 	fetchToken: Effect.Effect<
 		{ value: T; expiresInSeconds: number },
 		IntegrationError
 	>,
-): Effect.Effect<T, IntegrationError> =>
-	Effect.suspend(() => {
+	use: (token: T) => Effect.Effect<A, IntegrationError>,
+): Effect.Effect<A, IntegrationError> => {
+	const token = Effect.suspend(() => {
 		const cached = tokens.get(key);
 		if (cached && cached.expiresAt > Date.now()) {
 			return Effect.succeed(cached.value as T);
@@ -248,9 +276,21 @@ export const cachedToken = <T>(
 			}),
 		);
 	});
-
-/** Drops a cached token, for example after the service rejected it. */
-export const forgetToken = (key: string) => tokens.delete(key);
+	return token.pipe(
+		Effect.flatMap((value) =>
+			use(value).pipe(
+				Effect.catchIf(
+					(error) => error.reason === "unauthorized",
+					() =>
+						Effect.suspend(() => {
+							tokens.delete(key);
+							return token.pipe(Effect.flatMap(use));
+						}),
+				),
+			),
+		),
+	);
+};
 
 // A failing key is a server configuration problem, not the app user's session,
 // so auth failures map to BAD_GATEWAY rather than UNAUTHORIZED.

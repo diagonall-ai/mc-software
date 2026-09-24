@@ -8,7 +8,7 @@ AI agents should also read [AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md) before addin
 
 ## What This Project Needs
 
-- Node.js (LTS, 22.12 or newer) and pnpm
+- Node.js (LTS, 22.18 or newer) and pnpm
 - Cloudflare Wrangler, installed by `pnpm install`, run as `pnpm wrangler`, and authenticated with the target account
 - A D1 database bound as `DB`
 - Better Auth secrets stored as Worker secrets or local `.dev.vars`
