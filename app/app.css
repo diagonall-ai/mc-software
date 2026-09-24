@@ -103,6 +103,7 @@
 	--popover-foreground: #000000;
 	--primary: #fff95f; /* electric yellow: CTAs and active states only */
 	--primary-foreground: #000000;
+	--primary-edge: #000000; /* outline and offset shadow of pressable buttons */
 	--secondary: #f5f4f1; /* surface-container */
 	--secondary-foreground: #000000;
 	--muted: #f5f4f1; /* surface-container */
@@ -121,11 +122,11 @@
 	--chart-3: #ffd700; /* primary-container */
 	--chart-4: #ff006e; /* error */
 	--chart-5: #0d0256; /* inverse-surface */
-	--sidebar: #f5f4f1; /* surface-container */
+	--sidebar: #fefdf9; /* same cream as the page, like mobile.club menus */
 	--sidebar-foreground: #000000;
 	--sidebar-primary: #fff95f;
 	--sidebar-primary-foreground: #000000;
-	--sidebar-accent: #efefec;
+	--sidebar-accent: #f5f4f1; /* hover */
 	--sidebar-accent-foreground: #000000;
 	--sidebar-border: #e9ecef;
 	--sidebar-ring: #7d89ff;
@@ -165,6 +166,7 @@
 	--popover-foreground: #fefdf9;
 	--primary: #fff95f;
 	--primary-foreground: #000000;
+	--primary-edge: oklch(0.6 0.125 100); /* the key's shaded gold side */
 	--secondary: oklch(0.28 0.04 282);
 	--secondary-foreground: #fefdf9;
 	--muted: oklch(0.255 0.035 282);

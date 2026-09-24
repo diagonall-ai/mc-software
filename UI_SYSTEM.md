@@ -30,6 +30,7 @@ The theme in `app/app.css` is Mobile Club's brand ("energetic minimalism"): a wa
 - Dark mode is derived from the brand's deep indigo. Check new screens in both themes.
 - Whyte Inktrap is the only UI font (`font-sans`, `font-heading`). Boing (`font-boing`) is for rare display moments such as a hero title, never for body text or controls.
 - Buttons are pills and badges are fully rounded; cards and dialogs use the larger radius.
+- Default and outline buttons have the brand's pressable look: a solid edge and a hard 3px offset shadow the button sinks into when pressed. The yellow button's edge is `--primary-edge` (black in light mode, a shaded gold in dark mode so it reads as the side of a yellow key); outline buttons use the text color. The same edge marks the active sidebar item and the user avatar.
 - Fonts are self-hosted woff2 files in `public/fonts`. `@font-face` rules live in `app/app.css`, the Regular and Medium weights are preloaded in `app/routes/__root.tsx`, and fontaine (`vite.config.ts`) generates metric-matched fallbacks. To add a weight, add the file and an `@font-face` rule; keep the family names single-token (`whyte-inktrap`, `boing`) so the fallbacks match.
 
 ## Approved UI primitives
@@ -144,7 +145,7 @@ Base UI composition (not Radix):
 - a `Button` rendered as a link needs `nativeButton={false}`: `<Button nativeButton={false} render={<Link to="/x" />}>Go</Button>`
 - menu item actions use `onClick`, not `onSelect` (`onSelect` is only for `Command` items and `Calendar`)
 - state styling uses Base UI data attributes (`data-open:`, `data-closed:`, `data-checked:`, `data-starting-style:`), not `data-[state=...]`
-- local changes to stock wrappers, keep them when updating: `button` is pill-shaped with a foreground-colored `link` variant (brand), `dropdown-menu` and `tooltip` forward a `container` prop (the media player needs it), and the `toast` viewport uses `z-100` so toasts stay above open dialogs and drawers
+- local changes to stock wrappers, keep them when updating: `button` is pill-shaped, pressable (default and outline), with a foreground-colored `link` variant (brand), `dropdown-menu` and `tooltip` forward a `container` prop (the media player needs it), and the `toast` viewport uses `z-100` so toasts stay above open dialogs and drawers
 
 Rules:
 

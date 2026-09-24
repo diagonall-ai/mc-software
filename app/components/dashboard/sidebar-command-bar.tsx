@@ -109,7 +109,7 @@ export function DashboardSidebarCommandBar({
 	return (
 		<>
 			<Button
-				className="h-9 w-full justify-between rounded-xl border-border/70 px-2.5 text-muted-foreground"
+				className="h-9 w-full justify-between px-3 text-muted-foreground"
 				onClick={() => setOpen(true)}
 				type="button"
 				variant="outline"

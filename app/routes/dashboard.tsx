@@ -227,6 +227,7 @@ function DashboardSidebarLink({
 	return (
 		<SidebarMenuItem>
 			<SidebarMenuButton
+				className="h-10 rounded-full px-3 text-[0.9375rem] font-semibold data-active:border data-active:border-(--primary-edge) data-active:bg-sidebar-primary data-active:font-semibold data-active:text-sidebar-primary-foreground data-active:shadow-[2px_2px_0_var(--primary-edge)]"
 				isActive={isActive}
 				render={<Link to={link.to} viewTransition />}
 				tooltip={link.label}
@@ -280,20 +281,21 @@ function DashboardSidebarUser({
 		>
 			<Avatar
 				className={cn(
-					"border border-sidebar-border/70 bg-sidebar-accent",
+					"border border-(--primary-edge) shadow-[2px_2px_0_var(--primary-edge)]",
 					avatarSize,
 				)}
 				size={compact ? "lg" : "default"}
 			>
 				<AvatarImage alt={userLabel} src={user?.image ?? undefined} />
-				<AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground">
+				<AvatarFallback className="bg-primary font-semibold text-primary-foreground">
 					{getInitials(userLabel)}
 				</AvatarFallback>
 			</Avatar>
 			{compact ? null : (
-				<p className="truncate text-sm font-semibold tracking-tight">
-					{userLabel}
-				</p>
+				<div className="min-w-0 leading-tight">
+					<p className="text-xs text-muted-foreground">Bonjour,</p>
+					<p className="truncate text-[0.9375rem] font-semibold">{userLabel}</p>
+				</div>
 			)}
 		</div>
 	);
@@ -662,9 +664,7 @@ function SidebarLabel({ children }: { children: React.ReactNode }) {
 	const isCollapsed = state === "collapsed";
 
 	return isCollapsed && !isMobile ? null : (
-		<span className="whitespace-nowrap font-sans text-[0.8125rem] leading-tight">
-			{children}
-		</span>
+		<span className="truncate">{children}</span>
 	);
 }
 
