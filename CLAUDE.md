@@ -136,7 +136,7 @@ When the user wants an AI assistant, chat agent, or agent harness inside their a
 Connect external services through the shells in `app/integrations/`, following `INTEGRATIONS.md`.
 
 - One class per service, with a static `init({ ...credentials })` and one method per endpoint. Add endpoints by copying the shell's example method.
-- Every call goes through `request` in `app/integrations/http.ts` (timeouts, retries, typed errors, Schema validation). Do not call `fetch` directly for a third-party API.
+- Every call goes through `request` in `app/integrations/http.ts` (timeouts, retries, typed errors, Schema validation); shells that do not speak HTTP, like SFTP, use its `retryTransient` and `IntegrationError`. Do not call `fetch` directly for a third-party API.
 - Run shells only on the server (oRPC handlers, server functions, scheduled jobs), through `runIntegration`.
 - Credentials are Worker secrets: `.dev.vars` locally, `pnpm wrangler secret put` in production. Never in code or in the browser.
 - Stay read-only. Ask the user before adding a method that writes, sends messages, or spends credits.

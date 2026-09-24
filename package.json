@@ -55,6 +55,7 @@
     "cn": "^0.4.0",
     "date-fns": "^4.2.1",
     "drizzle-orm": "^0.45.2",
+    "edgeport": "1.0.6",
     "effect": "4.0.0-rc.117",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",

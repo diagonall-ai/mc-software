@@ -155,17 +155,7 @@ export const request = <A>(
 		}),
 	);
 
-	return attempt.pipe(
-		Effect.retry({
-			schedule: backoff,
-			times: options.retries ?? 3,
-			while: (error) =>
-				error.retryable &&
-				!(
-					error.retryAfter &&
-					Duration.isGreaterThan(error.retryAfter, MAX_RETRY_AFTER)
-				),
-		}),
+	return retryTransient(attempt, options.retries).pipe(
 		Effect.flatMap((body) =>
 			Schema.decodeUnknownEffect(options.schema)(body).pipe(
 				Effect.mapError(
@@ -181,6 +171,28 @@ export const request = <A>(
 		),
 	);
 };
+
+/**
+ * Retries transient failures (network, 429, 5xx) with backoff and jitter,
+ * waiting for Retry-After when the service sends one. `request` already does
+ * this; use it for shells that do not speak HTTP.
+ */
+export const retryTransient = <A>(
+	effect: Effect.Effect<A, IntegrationError>,
+	times = 3,
+): Effect.Effect<A, IntegrationError> =>
+	effect.pipe(
+		Effect.retry({
+			schedule: backoff,
+			times,
+			while: (error) =>
+				error.retryable &&
+				!(
+					error.retryAfter &&
+					Duration.isGreaterThan(error.retryAfter, MAX_RETRY_AFTER)
+				),
+		}),
+	);
 
 /**
  * Runs a shell call from an oRPC handler or server function. Returns the

@@ -10,6 +10,7 @@ A shell ships with one example method. When the user needs more data from a serv
 |---|---|---|---|---|
 | Pennylane | `pennylane.ts` | Revue fournisseurs | `PENNYLANE_API_TOKEN` | Essentiel plan or higher; one token per company |
 | Tableau | `tableau.ts` | Cockpit Comex | `TABLEAU_HOST`, `TABLEAU_SITE`, `TABLEAU_TOKEN_NAME`, `TABLEAU_TOKEN_SECRET` | One session per token; data sources need "API Access" for VizQL |
+| SFTP | `sftp.ts` | Retention Hub | `SFTP_HOST`, `SFTP_USERNAME`, `SFTP_PASSWORD` or `SFTP_PRIVATE_KEY`, `SFTP_HOST_KEY_FINGERPRINT` (`SFTP_PORT`) | Pin the server's fingerprint; fails if the provider requires a fixed IP |
 | Google Sheets | `google-sheets.ts` | Retention Hub | `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY` | Recent Google Cloud organizations block key creation by default |
 | Zendesk | `zendesk.ts` | Voix du client | `ZENDESK_SUBDOMAIN`, `ZENDESK_CLIENT_ID`, `ZENDESK_CLIENT_SECRET` | Use an OAuth client: API tokens are being retired |
 | Trustpilot | `trustpilot.ts` | Voix du client | `TRUSTPILOT_API_KEY` | Needs the API Module (Premium add-on, or Enterprise) |
@@ -36,6 +37,8 @@ Every call gets, from `request` in `http.ts`:
 - one error type, `IntegrationError`, with a `reason` and a French `message` the user can read.
 
 Services that trade credentials for a short-lived token (Zendesk, Google Sheets, Tableau) cache it with `cachedToken`, shared by the requests one Worker instance serves.
+
+SFTP is not HTTP: `sftp.ts` uses [edgeport](https://github.com/gmitch215/edgeport), an SSH and SFTP client written for Workers, and gets the same retries and errors through `retryTransient` and `IntegrationError`.
 
 ## Connect A Service With The User
 
@@ -64,7 +67,7 @@ pnpm integration zendesk exportTickets '{"since": "2026-09-01"}'
 - `pnpm integration` alone lists the shells; `pnpm integration pennylane` lists its methods.
 - Ask for two or three items (`limit`): enough to see the shape, and less customer data in the conversation.
 - Not sure what the service returns? Declare the method with `Schema.Unknown`, run it, then declare the fields you need from the real response.
-- Third-party APIs work from localhost: no deploy needed (only Workers AI needs one).
+- Third-party APIs work from localhost: no deploy needed (only Workers AI needs one). SFTP too: the command gives edgeport a Node stand-in for Workers' TCP sockets.
 
 Once the method works here, add the oRPC capability and check it through the app (see "API And MCP Smoke Tests" in `AI_AGENT_GUIDE.md`).
 
@@ -141,7 +144,7 @@ Most of these services have tight quotas: Trustpilot about 550 calls a day, Goog
 
 ## Sources Without An API Shell
 
-- **SFTP files (Retention Hub):** a Worker cannot open an SFTP connection. Start with a CSV upload in the app. Better: the provider pushes its files to a Cloudflare R2 bucket through R2's S3-compatible API, with an access key limited to that bucket. Last resort: a Cloudflare Container that pulls from the SFTP server on a schedule.
+- **SFTP when `sftp.ts` cannot connect:** if the provider only accepts known IP addresses (Workers have none) or runs an old SSH server, have the provider push its files to a Cloudflare R2 bucket through R2's S3-compatible API, with an access key limited to that bucket, or upload the CSVs in the app.
 - **Sage 100:** no API. CSV export, uploaded in the app.
 - **BP Excel (Cockpit Comex):** a file upload, read on the server. Ask before adding a spreadsheet library.
 - **Internal databases (Loop, Vecna, Ganesh):** not an HTTP API. With a read-only database user, ideally on a copy of the database, connect through Cloudflare Hyperdrive. Decide the details with the database owner first.
@@ -150,7 +153,7 @@ Most of these services have tight quotas: Trustpilot about 550 calls a day, Goog
 ## Add A New Service
 
 1. Research it: docs, OpenAPI file (many docs sites publish `llms.txt`, or a `.md` version of each page), auth, rate limits, pagination, who creates the key and on which plan.
-2. Copy the closest shell: `pennylane.ts` for a plain key, `zendesk.ts` for credentials traded for a token, `tableau.ts` for a sign-in session.
+2. Copy the closest shell: `pennylane.ts` for a plain key, `zendesk.ts` for credentials traded for a token, `tableau.ts` for a sign-in session, `sftp.ts` for a protocol other than HTTP (edgeport also speaks FTP, IMAP, SMTP and more).
 3. Write the header comment first: it is the guide for getting the key.
 4. Keep the shape: `static init({ ... })`, one example method, a private `#call`, everything through `request`. Never import `cloudflare:workers` in a shell: credentials come in through `init`, which is what lets `pnpm integration` run it.
 5. Name the secrets `<FILE>_<INIT_FIELD>` and try the example method with `pnpm integration`.

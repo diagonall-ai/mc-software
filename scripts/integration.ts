@@ -15,12 +15,20 @@ import { registerHooks } from "node:module";
 import { Effect, Result } from "effect";
 
 // The app imports files without their extension (Vite resolves them): do the
-// same here, before importing a shell.
+// same here, before importing a shell. `cloudflare:sockets` only exists in
+// Workers: shells that speak TCP (SFTP) get a Node stand-in.
 registerHooks({
-	resolve: (specifier, context, next) =>
-		specifier.startsWith(".") && !/\.\w+$/.test(specifier)
+	resolve: (specifier, context, next) => {
+		if (specifier === "cloudflare:sockets") {
+			return {
+				shortCircuit: true,
+				url: new URL("./node-sockets.ts", import.meta.url).href,
+			};
+		}
+		return specifier.startsWith(".") && !/\.\w+$/.test(specifier)
 			? next(`${specifier}.ts`, context)
-			: next(specifier, context),
+			: next(specifier, context);
+	},
 });
 
 const shells = readdirSync(new URL("../app/integrations/", import.meta.url))
