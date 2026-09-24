@@ -1,6 +1,5 @@
 /**
  * Trustpilot: customer reviews of the company.
- * Used by: Voix du client.
  *
  * Docs: https://developers.trustpilot.com (no OpenAPI file; Trustpilot's
  * request collection is at https://github.com/trustpilot/documentation-bruno-collection)
@@ -23,7 +22,8 @@
  *   and failed calls count too: store reviews in D1 and sync them, never
  *   call Trustpilot on every page view. At most 833 calls per 5 minutes.
  * - Find the business unit id once with
- *   `GET /business-units/find?name=mobile.club` and keep it: it never changes.
+ *   `GET /business-units/find?name=example.com` (the company's domain) and keep
+ *   it: it never changes.
  * - Reviews: `page` and `perPage` (up to 100); 100,000 reviews at most, beyond
  *   that use `/business-units/{id}/all-reviews` with `pageToken`.
  * - If you store reviews, check `/v1/reviews/deletions` at least every 28 days

@@ -1,6 +1,5 @@
 /**
  * Pennylane: accounting (supplier and customer invoices, ledger).
- * Used by: Revue fournisseurs.
  *
  * Docs: https://pennylane.readme.io/docs/api-overview
  * Every page: https://pennylane.readme.io/llms.txt. Add `.md` to a reference
@@ -14,8 +13,7 @@
  *   Choose "API V2", read only, the scopes the app needs (the example below
  *   needs `supplier_invoices:readonly`) and an expiry date. The token is shown
  *   only once.
- * - One token per company: each legal entity needs its own token. Sage 100 has
- *   no API; its data comes in as a CSV upload.
+ * - One token per company: each legal entity needs its own token.
  * - Secret: PENNYLANE_API_TOKEN.
  *
  * API facts:

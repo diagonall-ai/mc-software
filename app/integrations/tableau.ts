@@ -1,6 +1,5 @@
 /**
  * Tableau: dashboards and their data (Tableau Cloud or Tableau Server).
- * Used by: Cockpit Comex.
  *
  * Docs: https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api.htm
  * No OpenAPI file for these REST endpoints. The VizQL Data Service has one:
@@ -19,7 +18,6 @@
  *   from the URL part after `#/site/` (empty for the default site on Server).
  * - Secrets: TABLEAU_HOST, TABLEAU_SITE, TABLEAU_TOKEN_NAME,
  *   TABLEAU_TOKEN_SECRET.
- * - The BP Excel does not come from Tableau: it is a file upload in the app.
  *
  * API facts:
  * - The shell signs in with the PAT (POST /api/{version}/auth/signin) and sends

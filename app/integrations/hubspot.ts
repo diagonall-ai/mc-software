@@ -1,6 +1,5 @@
 /**
  * HubSpot: CRM (contacts, companies, deals).
- * Used by: Prospection Cleaq.
  *
  * Docs: https://developers.hubspot.com/docs/api-reference/latest/overview
  * Add `.md` to a reference page URL to get its OpenAPI definition, for example

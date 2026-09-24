@@ -6,16 +6,16 @@ A shell ships with one example method. When the user needs more data from a serv
 
 ## The Shells
 
-| Service | File | Used by | Secrets | Watch out |
-|---|---|---|---|---|
-| Pennylane | `pennylane.ts` | Revue fournisseurs | `PENNYLANE_API_TOKEN` | Essentiel plan or higher; one token per company |
-| Tableau | `tableau.ts` | Cockpit Comex | `TABLEAU_HOST`, `TABLEAU_SITE`, `TABLEAU_TOKEN_NAME`, `TABLEAU_TOKEN_SECRET` | One session per token; data sources need "API Access" for VizQL |
-| SFTP | `sftp.ts` | Retention Hub | `SFTP_HOST`, `SFTP_USERNAME`, `SFTP_PASSWORD` or `SFTP_PRIVATE_KEY`, `SFTP_HOST_KEY_FINGERPRINT` (`SFTP_PORT`) | Pin the server's fingerprint; fails if the provider requires a fixed IP |
-| Google Sheets | `google-sheets.ts` | Retention Hub | `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY` | Recent Google Cloud organizations block key creation by default |
-| Zendesk | `zendesk.ts` | Voix du client | `ZENDESK_SUBDOMAIN`, `ZENDESK_CLIENT_ID`, `ZENDESK_CLIENT_SECRET` | Use an OAuth client: API tokens are being retired |
-| Trustpilot | `trustpilot.ts` | Voix du client | `TRUSTPILOT_API_KEY` | Needs the API Module (Premium add-on, or Enterprise) |
-| HubSpot | `hubspot.ts` | Prospection Cleaq | `HUBSPOT_SERVICE_KEY` | Use a Service Key, not a private app |
-| Lemlist | `lemlist.ts` | Prospection Cleaq | `LEMLIST_API_KEY` | The key can do everything; enrichment spends credits |
+| Service | File | Secrets | Watch out |
+|---|---|---|---|
+| Pennylane | `pennylane.ts` | `PENNYLANE_API_TOKEN` | Essentiel plan or higher; one token per company |
+| Tableau | `tableau.ts` | `TABLEAU_HOST`, `TABLEAU_SITE`, `TABLEAU_TOKEN_NAME`, `TABLEAU_TOKEN_SECRET` | One session per token; data sources need "API Access" for VizQL |
+| SFTP | `sftp.ts` | `SFTP_HOST`, `SFTP_USERNAME`, `SFTP_PASSWORD` or `SFTP_PRIVATE_KEY`, `SFTP_HOST_KEY_FINGERPRINT` (`SFTP_PORT`) | Pin the server's fingerprint; fails if the provider requires a fixed IP |
+| Google Sheets | `google-sheets.ts` | `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY` | Recent Google Cloud organizations block key creation by default |
+| Zendesk | `zendesk.ts` | `ZENDESK_SUBDOMAIN`, `ZENDESK_CLIENT_ID`, `ZENDESK_CLIENT_SECRET` | Use an OAuth client: API tokens are being retired |
+| Trustpilot | `trustpilot.ts` | `TRUSTPILOT_API_KEY` | Needs the API Module (Premium add-on, or Enterprise) |
+| HubSpot | `hubspot.ts` | `HUBSPOT_SERVICE_KEY` | Use a Service Key, not a private app |
+| Lemlist | `lemlist.ts` | `LEMLIST_API_KEY` | The key can do everything; enrichment spends credits |
 
 The comment at the top of each shell is the source of truth: docs and OpenAPI links, who creates the key and where, plan requirements, limits, pagination and gotchas.
 
@@ -92,7 +92,7 @@ When a call fails, the `reason` says why:
 3. Declare only the fields the app uses. `Schema.NullOr(...)` for fields that can be `null`, `Schema.optional(...)` for fields that can be missing. Keep money amounts as strings, and convert to cents before adding them.
 4. Stay read-only. Before adding a method that writes, sends a message or spends credits, ask the user. Writes are never retried by default; a POST that only reads, like a HubSpot search, can pass `retries: 3`.
 5. Take plain JSON arguments (text, numbers, booleans, lists, objects): no `Date` or class instances, so the test command, oRPC and MCP can all pass them.
-6. Return one page and its cursor. Let the caller loop (below).
+6. Return one page and its cursor. For every page at once, add a second method that loops (see below).
 7. Add the scope or permission the endpoint needs to the header comment.
 8. Run it with `pnpm integration` and fix what it reports.
 
@@ -152,9 +152,9 @@ Most of these services have tight quotas: Trustpilot about 550 calls a day, Goog
 ## Sources Without An API Shell
 
 - **SFTP when `sftp.ts` cannot connect:** if the provider only accepts known IP addresses (Workers have none) or runs an old SSH server, have the provider push its files to a Cloudflare R2 bucket through R2's S3-compatible API, with an access key limited to that bucket, or upload the CSVs in the app.
-- **Sage 100:** no API. CSV export, uploaded in the app.
-- **BP Excel (Cockpit Comex):** a file upload, read on the server. Ask before adding a spreadsheet library.
-- **Internal databases (Loop, Vecna, Ganesh):** not an HTTP API. With a read-only database user, ideally on a copy of the database, connect through Cloudflare Hyperdrive. Decide the details with the database owner first.
+- **Software with no API:** export a CSV and upload it in the app.
+- **Spreadsheet files (Excel):** a file upload, read on the server. Ask before adding a spreadsheet library.
+- **Internal databases:** not an HTTP API. With a read-only database user, ideally on a copy of the database, connect through Cloudflare Hyperdrive. Decide the details with the database owner first.
 - **Trustpilot without the API Module:** CSV export from Trustpilot Business, uploaded in the app.
 
 ## Add A New Service

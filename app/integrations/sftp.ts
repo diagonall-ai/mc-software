@@ -1,6 +1,5 @@
 /**
  * SFTP: files a provider drops on its server, such as daily CSV exports.
- * Used by: Retention Hub.
  *
  * Library: edgeport (https://github.com/gmitch215/edgeport), SSH and SFTP
  * written for Cloudflare Workers on `cloudflare:sockets`. It is young (2026)

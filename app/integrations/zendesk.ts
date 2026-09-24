@@ -1,6 +1,5 @@
 /**
  * Zendesk Support: customer tickets and their comments.
- * Used by: Voix du client.
  *
  * Docs: https://developer.zendesk.com/api-reference/ticketing/introduction/
  * OpenAPI: https://developer.zendesk.com/zendesk/oas.yaml (it has gaps: trust

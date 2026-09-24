@@ -1,6 +1,5 @@
 /**
  * Lemlist: cold email and LinkedIn campaigns.
- * Used by: Prospection Cleaq.
  *
  * Docs: https://developer.lemlist.com
  * OpenAPI: https://developer.lemlist.com/api-reference/openapi/v2.json

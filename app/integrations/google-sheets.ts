@@ -1,6 +1,5 @@
 /**
  * Google Sheets: read spreadsheet cells with a service account.
- * Used by: Retention Hub.
  *
  * Docs: https://developers.google.com/workspace/sheets/api/reference/rest
  * Discovery document (Google publishes no OpenAPI file):
