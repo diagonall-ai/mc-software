@@ -3,7 +3,7 @@
   "name": "personnal-software",
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  "main": "app/server.ts",
 
   // =============================================================================
   // Worker Loader (Dynamic Workers)

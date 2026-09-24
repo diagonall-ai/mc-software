@@ -9,15 +9,17 @@ import {
 	handleOAuthOptions,
 	handleOAuthProtectedResource,
 } from "~/lib/mcp-oauth";
-import { createServerApiClient } from "~/lib/orpc/client.server";
 
+// Worker entry (`main` in wrangler.jsonc): answers MCP OAuth discovery, then
+// hands every other request to TanStack Start. Durable Object classes, such as
+// a Think agent, must be exported from this file.
 const startFetch = createStartHandler(defaultStreamHandler);
 
 export type ServerEntry = { fetch: RequestHandler<Register> };
 
 function createServerEntry(entry: ServerEntry): ServerEntry {
 	return {
-		async fetch(request) {
+		async fetch(request, opts) {
 			const url = new URL(request.url);
 
 			// Handle .well-known discovery endpoints before TanStack Start routing
@@ -40,11 +42,7 @@ function createServerEntry(entry: ServerEntry): ServerEntry {
 				return handleOAuthProtectedResource(url.origin);
 			}
 
-			return await entry.fetch(request, {
-				context: {
-					orpc: createServerApiClient(request),
-				},
-			});
+			return await entry.fetch(request, opts);
 		},
 	};
 }
