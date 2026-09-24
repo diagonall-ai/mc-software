@@ -106,13 +106,11 @@ Before deploying, verify:
 1. Open `http://localhost:3934` or the URL printed by `pnpm dev`.
 2. Confirm login/signup renders.
 3. Run `pnpm seed:dev` or create a test account with the temporary signup password.
-4. Confirm a default organization is created after signup/session success.
-5. Create another account with the same name and confirm organization slug suffixing works.
-6. Confirm login, signout, and active organization selection.
-7. Confirm profile update.
-8. Confirm the example API route or the first real domain route once added.
-9. Confirm API key auth on `/api/v1/*`.
-10. Confirm MCP auth and tool listing on `/api/mcp`.
+4. Confirm login, signout, and that the sidebar shows the signed-in user's name.
+5. Confirm profile update.
+6. Confirm the example API route or the first real domain route once added.
+7. Confirm API key auth on `/api/v1/*`.
+8. Confirm MCP auth and tool listing on `/api/mcp`.
 
 ## 8. Machine Access Verification
 

@@ -40,7 +40,7 @@ function DashboardOverviewPage() {
 				</CardHeader>
 				<CardContent className="grid gap-3 sm:grid-cols-2">
 					<TemplateCapability
-						description="Better Auth stores users, sessions, organizations, API keys, and MCP OAuth data in D1."
+						description="Better Auth stores users, sessions, API keys, and MCP OAuth data in D1."
 						icon={UserRound}
 						title="Auth ready"
 					/>

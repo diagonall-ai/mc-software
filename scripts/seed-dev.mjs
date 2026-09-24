@@ -143,46 +143,6 @@ function assertSafeSiteUrl(siteUrl, allowRemote) {
 	);
 }
 
-function getPersonalOrganizationName(name, email) {
-	const label = normalizeLabel(name) ?? emailLabel(email);
-	return `${toPossessive(label)} Organization`;
-}
-
-function getPersonalOrganizationSlugBase(name, email) {
-	const label = normalizeLabel(name) ?? emailLabel(email);
-	return `${toOrganizationSlug(label)}-organization`;
-}
-
-function normalizeLabel(value) {
-	const trimmed = value?.trim();
-	return trimmed ? trimmed : null;
-}
-
-function emailLabel(email) {
-	const localPart = email?.split("@")[0] ?? "personal";
-	const cleaned = localPart.replace(/[._-]+/g, " ").trim();
-	return cleaned || "Personal";
-}
-
-function toPossessive(value) {
-	return value.endsWith("s") ? `${value}'` : `${value}'s`;
-}
-
-function toOrganizationSlug(value) {
-	return value
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.slice(0, 48);
-}
-
-function getSlugCandidate(baseSlug, suffix) {
-	if (suffix === 0) {
-		return baseSlug;
-	}
-	return `${baseSlug}-${suffix + 1}`;
-}
-
 async function authFetch(siteUrl, jar, pathName, init = {}) {
 	const headers = new Headers(init.headers ?? {});
 	if (!headers.has("Origin")) {
@@ -293,119 +253,6 @@ async function signUp(siteUrl, jar, args, superAdminPassword) {
 	});
 }
 
-function extractOrganizations(data) {
-	if (Array.isArray(data)) {
-		return data;
-	}
-
-	if (data && typeof data === "object" && Array.isArray(data.data)) {
-		return data.data;
-	}
-
-	return [];
-}
-
-function readString(value, key) {
-	if (!value || typeof value !== "object") {
-		return null;
-	}
-
-	const fieldValue = value[key];
-	return typeof fieldValue === "string" ? fieldValue : null;
-}
-
-async function setActiveOrganization(siteUrl, jar, organizationId) {
-	const result = await authFetch(
-		siteUrl,
-		jar,
-		"/api/auth/organization/set-active",
-		{
-			body: { organizationId },
-			method: "POST",
-		},
-	);
-	if (!result.response.ok) {
-		throw new Error(
-			readErrorMessage(result.data, "Failed to set active organization"),
-		);
-	}
-}
-
-async function ensureOrganization(siteUrl, jar, args) {
-	const listResult = await authFetch(
-		siteUrl,
-		jar,
-		"/api/auth/organization/list",
-	);
-	if (!listResult.response.ok) {
-		throw new Error(
-			readErrorMessage(listResult.data, "Failed to list organizations"),
-		);
-	}
-
-	const organizations = extractOrganizations(listResult.data);
-	const [firstOrganization] = organizations;
-	const firstOrganizationId = readString(firstOrganization, "id");
-	if (firstOrganizationId) {
-		await setActiveOrganization(siteUrl, jar, firstOrganizationId);
-		return { created: false, id: firstOrganizationId };
-	}
-
-	return createOrganization(siteUrl, jar, args);
-}
-
-async function createOrganization(siteUrl, jar, args) {
-	const name = getPersonalOrganizationName(args.name, args.email);
-	const baseSlug = getPersonalOrganizationSlugBase(args.name, args.email);
-
-	for (let suffix = 0; suffix < 100; suffix += 1) {
-		const slug = getSlugCandidate(baseSlug, suffix);
-		const checkResult = await authFetch(
-			siteUrl,
-			jar,
-			"/api/auth/organization/check-slug",
-			{
-				body: { slug },
-				method: "POST",
-			},
-		);
-		if (!checkResult.response.ok) {
-			continue;
-		}
-
-		const createResult = await authFetch(
-			siteUrl,
-			jar,
-			"/api/auth/organization/create",
-			{
-				body: {
-					keepCurrentActiveOrganization: false,
-					name,
-					slug,
-				},
-				method: "POST",
-			},
-		);
-		if (!createResult.response.ok) {
-			if (isConflictError(createResult)) {
-				continue;
-			}
-			throw new Error(
-				readErrorMessage(createResult.data, "Failed to create organization"),
-			);
-		}
-
-		const organizationId = readString(createResult.data, "id");
-		if (!organizationId) {
-			throw new Error("Organization was created without an id in the response");
-		}
-
-		return { created: true, id: organizationId, slug };
-	}
-
-	throw new Error("Failed to find an available organization slug");
-}
-
 async function main() {
 	const envValues = { ...readDotEnv(".dev.vars"), ...process.env };
 	const args = parseArgs(envValues);
@@ -438,13 +285,6 @@ async function main() {
 			console.log(`Created dev user ${args.email}`);
 		}
 	}
-
-	const organization = await ensureOrganization(args.siteUrl, jar, args);
-	console.log(
-		organization.created
-			? `Created and activated organization ${organization.id}`
-			: `Activated existing organization ${organization.id}`,
-	);
 }
 
 main().catch((error) => {

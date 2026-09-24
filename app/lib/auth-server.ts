@@ -4,7 +4,6 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { mcp } from "better-auth/plugins";
-import { organization } from "better-auth/plugins/organization";
 import { db } from "~/db/client";
 import * as schema from "~/db/schema";
 
@@ -63,9 +62,6 @@ export const authServer = betterAuth({
 		}),
 	},
 	plugins: [
-		organization({
-			allowUserToCreateOrganization: true,
-		}),
 		apiKey({
 			apiKeyHeaders: "x-api-key",
 			defaultPrefix: "bd_",

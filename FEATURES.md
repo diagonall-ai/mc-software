@@ -105,8 +105,7 @@ Auth checks belong in two places:
 Server-side authorization patterns:
 
 - derive identity from Better Auth
-- derive active organization from the session or membership table
-- use `requireAuthenticatedActor`, `requireActiveOrganizationMembership`, or `requireOrganizationMembership` from `app/lib/orpc/authorization.ts`
+- use `requireAuthenticatedActor` from `app/lib/orpc/authorization.ts` and scope data to its `userId`
 - never accept `userId` from the client for auth decisions
 - check ownership inside the repository/service that reads or writes protected data
 

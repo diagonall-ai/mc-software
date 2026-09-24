@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
 import {
-	Building2,
 	Command,
 	Copy,
 	Home,
@@ -27,7 +26,6 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "~/components/ui/tooltip";
-import { authClient } from "~/lib/auth-client";
 
 type DashboardSidebarCommandBarProps = {
 	onCopyMcpUrl: () => Promise<void>;
@@ -43,7 +41,6 @@ export function DashboardSidebarCommandBar({
 	theme,
 }: DashboardSidebarCommandBarProps) {
 	const { isCollapsed, isMobile } = useSidebar();
-	const { data: activeOrganization } = authClient.useActiveOrganization();
 	const [open, setOpen] = useState(false);
 
 	useEffect(() => {
@@ -97,7 +94,6 @@ export function DashboardSidebarCommandBar({
 					</TooltipContent>
 				</Tooltip>
 				<DashboardCommandDialog
-					activeOrganization={activeOrganization}
 					onCopyMcpUrl={onCopyMcpUrl}
 					onOpenChange={setOpen}
 					onSignOut={onSignOut}
@@ -124,7 +120,6 @@ export function DashboardSidebarCommandBar({
 				<CommandShortcut className="ml-2.5 inline-flex">⌘K</CommandShortcut>
 			</Button>
 			<DashboardCommandDialog
-				activeOrganization={activeOrganization}
 				onCopyMcpUrl={onCopyMcpUrl}
 				onOpenChange={setOpen}
 				onSignOut={onSignOut}
@@ -137,7 +132,6 @@ export function DashboardSidebarCommandBar({
 }
 
 function DashboardCommandDialog({
-	activeOrganization,
 	onCopyMcpUrl,
 	onOpenChange,
 	onSignOut,
@@ -145,7 +139,6 @@ function DashboardCommandDialog({
 	open,
 	theme,
 }: {
-	activeOrganization: { id: string } | null | undefined;
 	onCopyMcpUrl: () => Promise<void>;
 	onOpenChange: (open: boolean) => void;
 	onSignOut: () => Promise<void>;
@@ -184,20 +177,6 @@ function DashboardCommandDialog({
 						<UserRound className="size-4" />
 						Profil
 					</CommandItem>
-					{activeOrganization ? (
-						<CommandItem
-							onSelect={() => {
-								onOpenChange(false);
-								void navigate({
-									to: "/dashboard/organization-settings",
-									viewTransition: true,
-								});
-							}}
-						>
-							<Building2 className="size-4" />
-							Paramètres de l’organisation
-						</CommandItem>
-					) : null}
 				</CommandGroup>
 				<CommandSeparator />
 				<CommandGroup heading="Actions">

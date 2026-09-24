@@ -78,7 +78,7 @@ export function NotFoundRouteState() {
 export function ForbiddenRouteState() {
 	return (
 		<RouteErrorState
-			description="The current session is missing the required permission or organization membership."
+			description="The current session is missing the required permission."
 			kind="forbidden"
 			title="Access denied"
 		/>

@@ -93,7 +93,7 @@ Do not store secrets in `wrangler.jsonc`.
 - Route loaders are the primary source for initial page data and should call `context.getOrpc()` for feature capabilities.
 - Loader data should include page header metadata when the dashboard shell needs a title, description, or back button during SSR.
 - Each page should define a loading component with a skeleton so SSR and pending navigation have a real shape.
-- Profile data, active organization lookup, API keys, organizations, MCP OAuth persistence, and future feature data live in D1.
+- Profile data, API keys, MCP OAuth persistence, and future feature data live in D1.
 - Realtime subscriptions and file/blob storage examples are intentionally removed. Add R2 or Durable Objects later only for a real feature.
 
 ## Machine Access
@@ -111,7 +111,7 @@ REST and MCP can authenticate with Better Auth API keys. MCP OAuth metadata is s
 
 - `pnpm run doctor` verifies local bootstrap configuration without mutating files or data.
 - `pnpm run doctor:full` also probes the running local app, builds, and runs a Wrangler dry-run.
-- `pnpm seed:dev` creates or reuses `test@test.com` / `testtest` on a local app origin and ensures a default organization exists.
+- `pnpm seed:dev` creates or reuses `test@test.com` / `testtest` on a local app origin.
 
 The seed command refuses non-local origins unless `--allow-remote` is passed.
 
@@ -120,7 +120,7 @@ The seed command refuses non-local origins unless `--allow-remote` is passed.
 - Shared route failures live in `app/components/route-error-state.tsx`.
 - Root and dashboard routes use the shared 404, forbidden, and server-error states by default.
 - Server-side permission helpers live in `app/lib/orpc/authorization.ts`.
-- Use `requireAuthenticatedActor`, `requireActiveOrganizationMembership`, or `requireOrganizationMembership` inside oRPC handlers and server repositories before reading tenant data.
+- Use `requireAuthenticatedActor` inside oRPC handlers and server repositories, and scope reads and writes to its `userId`.
 
 ## Verification
 

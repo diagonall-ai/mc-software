@@ -10,13 +10,11 @@ import {
 import {
 	ArrowLeft,
 	BookOpen,
-	Building2,
 	Copy,
 	Home,
 	Key,
 	Layers3,
 	LogOut,
-	Mail,
 	Moon,
 	Sun,
 	UserRound,
@@ -29,8 +27,6 @@ import {
 	DashboardShellPortalProvider,
 } from "~/components/dashboard/shell-portals";
 import { DashboardSidebarCommandBar } from "~/components/dashboard/sidebar-command-bar";
-import { OrganizationSwitcher } from "~/components/organizations/organization-switcher";
-import { PendingInvitationsDrawer } from "~/components/organizations/pending-invitations-drawer";
 import { RouteErrorComponent } from "~/components/route-error-state";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
@@ -65,7 +61,6 @@ import {
 import { getBetterAuthSessionStatus } from "~/lib/auth.functions";
 import { authClient } from "~/lib/auth-client";
 import { getDashboardPageHeader } from "~/lib/dashboard-page-header";
-import { ensureOrganizationForSession } from "~/lib/organization";
 import { cn } from "~/lib/utils";
 
 const dashboardLinks = [
@@ -110,36 +105,6 @@ function DashboardShell() {
 	const navigate = useNavigate();
 	const { pathname } = useLocation();
 	const [theme, setTheme] = useState<"light" | "dark">("light");
-	const { data: activeOrganization, isPending: loadingActiveOrganization } =
-		authClient.useActiveOrganization();
-	const { data: organizations, isPending: loadingOrganizations } =
-		authClient.useListOrganizations();
-
-	useEffect(() => {
-		if (!user?.email) return;
-		if (loadingActiveOrganization || loadingOrganizations) return;
-		void ensureOrganizationForSession(
-			authClient,
-			{ email: user.email, name: user.name },
-			{
-				activeOrganization: activeOrganization?.id
-					? { id: activeOrganization.id }
-					: null,
-				organizations:
-					organizations?.map((organization) => ({
-						id: organization.id,
-						name: organization.name,
-					})) ?? null,
-			},
-		);
-	}, [
-		activeOrganization?.id,
-		loadingActiveOrganization,
-		loadingOrganizations,
-		organizations,
-		user?.email,
-		user?.name,
-	]);
 
 	useEffect(() => {
 		const root = document.documentElement;
@@ -179,7 +144,7 @@ function DashboardShell() {
 			<SidebarProvider className="fixed inset-0 overflow-hidden">
 				<Sidebar>
 					<SidebarHeader className="h-14 p-0">
-						<DashboardSidebarOrganizationSwitcher />
+						<DashboardSidebarUser user={user} />
 					</SidebarHeader>
 					<SidebarContent>
 						<SidebarMenu>
@@ -275,20 +240,72 @@ function DashboardSidebarLink({
 	);
 }
 
-function DashboardSidebarOrganizationSwitcher() {
-	const { isCollapsed } = useSidebar();
+function DashboardSidebarUser({
+	user,
+}: {
+	user:
+		| {
+				email?: string;
+				image?: string | null;
+				name?: string;
+		  }
+		| null
+		| undefined;
+}) {
+	const { isCollapsed, isMobile } = useSidebar();
+	const compact = isCollapsed && !isMobile;
+	const avatarSize = compact ? "size-10" : "size-6.5";
 
-	return <OrganizationSwitcher isCollapsed={isCollapsed} />;
+	if (user === undefined) {
+		return (
+			<div
+				className={cn(
+					"flex h-full items-center gap-3 px-3",
+					compact && "justify-center px-0",
+				)}
+			>
+				<Skeleton className={cn("shrink-0 rounded-full", avatarSize)} />
+				{compact ? null : <Skeleton className="h-3.5 w-28 rounded-md" />}
+			</div>
+		);
+	}
+
+	const userLabel = user?.name ?? user?.email ?? "Connecté";
+
+	return (
+		<div
+			className={cn(
+				"flex h-full min-w-0 items-center gap-3 px-3 text-sidebar-accent-foreground",
+				compact && "justify-center px-0",
+			)}
+		>
+			<Avatar
+				className={cn(
+					"border border-sidebar-border/70 bg-sidebar-accent",
+					avatarSize,
+				)}
+				size={compact ? "lg" : "default"}
+			>
+				<AvatarImage alt={userLabel} src={user?.image ?? undefined} />
+				<AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground">
+					{getInitials(userLabel)}
+				</AvatarFallback>
+			</Avatar>
+			{compact ? null : (
+				<p className="truncate text-sm font-semibold tracking-tight">
+					{userLabel}
+				</p>
+			)}
+		</div>
+	);
 }
 
 function SessionFooter({
-	activeOrganization,
 	className,
 	onCopyMcpUrl,
 	onSignOut,
 	user,
 }: {
-	activeOrganization: { id: string } | null | undefined;
 	className?: string;
 	onCopyMcpUrl: () => Promise<void>;
 	user:
@@ -302,8 +319,6 @@ function SessionFooter({
 	onSignOut: () => Promise<void>;
 }) {
 	const [apiKeyDrawerOpen, setApiKeyDrawerOpen] = useState(false);
-	const [pendingInvitationsDrawerOpen, setPendingInvitationsDrawerOpen] =
-		useState(false);
 
 	if (user === undefined) {
 		return <SessionFooterSkeleton className={className} />;
@@ -316,11 +331,6 @@ function SessionFooter({
 			<ApiKeyDrawer
 				onOpenChange={setApiKeyDrawerOpen}
 				open={apiKeyDrawerOpen}
-				showTrigger={false}
-			/>
-			<PendingInvitationsDrawer
-				onOpenChange={setPendingInvitationsDrawerOpen}
-				open={pendingInvitationsDrawerOpen}
 				showTrigger={false}
 			/>
 			<div className={cn("rounded-xl", className)}>
@@ -355,12 +365,8 @@ function SessionFooter({
 						sideOffset={10}
 					>
 						<CompteMenuItems
-							activeOrganization={activeOrganization}
 							onCopyMcpUrl={onCopyMcpUrl}
 							onOpenApiKeys={() => setApiKeyDrawerOpen(true)}
-							onOpenPendingInvitations={() =>
-								setPendingInvitationsDrawerOpen(true)
-							}
 							onSignOut={onSignOut}
 						/>
 					</DropdownMenuContent>
@@ -371,16 +377,12 @@ function SessionFooter({
 }
 
 function CompteMenuItems({
-	activeOrganization,
 	onCopyMcpUrl,
 	onOpenApiKeys,
-	onOpenPendingInvitations,
 	onSignOut,
 }: {
-	activeOrganization: { id: string } | null | undefined;
 	onCopyMcpUrl: () => Promise<void>;
 	onOpenApiKeys: () => void;
-	onOpenPendingInvitations: () => void;
 	onSignOut: () => Promise<void>;
 }) {
 	return (
@@ -393,22 +395,10 @@ function CompteMenuItems({
 				<Key className="size-4" />
 				<span>Clés API</span>
 			</DropdownMenuItem>
-			<DropdownMenuItem onClick={onOpenPendingInvitations}>
-				<Mail className="size-4" />
-				<span>Invitations</span>
-			</DropdownMenuItem>
 			<DropdownMenuItem onClick={() => void onCopyMcpUrl()}>
 				<Copy className="size-4" />
 				<span>Copier l’URL MCP</span>
 			</DropdownMenuItem>
-			{activeOrganization ? (
-				<DropdownMenuItem
-					render={<Link to="/dashboard/organization-settings" />}
-				>
-					<Building2 className="size-4" />
-					<span>Paramètres de l’organisation</span>
-				</DropdownMenuItem>
-			) : null}
 			<DropdownMenuItem render={<Link to="/dashboard/profile" />}>
 				<UserRound className="size-4" />
 				<span>Profil</span>
@@ -466,11 +456,8 @@ function DashboardSidebarFooter({
 		| undefined;
 	onSignOut: () => Promise<void>;
 }) {
-	const { data: activeOrganization } = authClient.useActiveOrganization();
 	const { isCollapsed, isMobile } = useSidebar();
 	const [apiKeyDrawerOpen, setApiKeyDrawerOpen] = useState(false);
-	const [pendingInvitationsDrawerOpen, setPendingInvitationsDrawerOpen] =
-		useState(false);
 	const userLabel = user?.name ?? user?.email ?? "Connecté";
 
 	if (isCollapsed && !isMobile) {
@@ -508,11 +495,6 @@ function DashboardSidebarFooter({
 					onThemeChange={onThemeChange}
 					theme={theme}
 				/>
-				<PendingInvitationsDrawer
-					onOpenChange={setPendingInvitationsDrawerOpen}
-					open={pendingInvitationsDrawerOpen}
-					showTrigger={false}
-				/>
 				<ThemeToggle
 					className="m-0 h-14 w-full rounded-none border-b border-border/70"
 					onThemeChange={onThemeChange}
@@ -547,12 +529,8 @@ function DashboardSidebarFooter({
 					</Tooltip>
 					<DropdownMenuContent align="start" side="right" sideOffset={10}>
 						<CompteMenuItems
-							activeOrganization={activeOrganization}
 							onCopyMcpUrl={onCopyMcpUrl}
 							onOpenApiKeys={() => setApiKeyDrawerOpen(true)}
-							onOpenPendingInvitations={() =>
-								setPendingInvitationsDrawerOpen(true)
-							}
 							onSignOut={onSignOut}
 						/>
 					</DropdownMenuContent>
@@ -571,7 +549,6 @@ function DashboardSidebarFooter({
 			/>
 			<div className="flex items-center gap-2">
 				<SessionFooter
-					activeOrganization={activeOrganization}
 					className="min-w-0 flex-1"
 					onCopyMcpUrl={onCopyMcpUrl}
 					onSignOut={onSignOut}

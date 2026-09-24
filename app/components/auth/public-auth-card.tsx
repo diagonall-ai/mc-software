@@ -13,7 +13,6 @@ import { Label } from "~/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { toast } from "~/components/ui/toast";
 import { authClient } from "~/lib/auth-client";
-import { ensureOrganizationForSession } from "~/lib/organization";
 import { PROJECT_NAME } from "~/lib/project";
 
 export function PublicAuthCard({
@@ -67,7 +66,6 @@ function LoginForm({ onAuthSuccess }: { onAuthSuccess?: () => void }) {
 				});
 				return;
 			}
-			await ensureOrganizationForSession(authClient, { email });
 			if (onAuthSuccess) {
 				onAuthSuccess();
 			} else {
@@ -117,33 +115,6 @@ function SignUpForm({ onAuthSuccess }: { onAuthSuccess?: () => void }) {
 	const navigate = useNavigate();
 	const [loading, setLoading] = useState(false);
 
-	async function finishSignUp(email: string, name: string) {
-		try {
-			await waitForAuthSession();
-			await ensureOrganizationForSession(authClient, { email, name });
-		} catch (err) {
-			toast.add({
-				title: "Compte créé, mais l’espace n’a pas pu être initialisé",
-				description: getErrorMessage(err),
-				type: "error",
-				timeout: 10_000,
-				actionProps: {
-					children: "Réessayer",
-					onClick: () => {
-						void finishSignUp(email, name);
-					},
-				},
-			});
-			return;
-		}
-
-		if (onAuthSuccess) {
-			onAuthSuccess();
-		} else {
-			navigate({ to: "/dashboard" });
-		}
-	}
-
 	async function handleSubmit(e: FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
@@ -178,7 +149,11 @@ function SignUpForm({ onAuthSuccess }: { onAuthSuccess?: () => void }) {
 				});
 				return;
 			}
-			await finishSignUp(email, name);
+			if (onAuthSuccess) {
+				onAuthSuccess();
+			} else {
+				navigate({ to: "/dashboard" });
+			}
 		} catch (err) {
 			toast.add({
 				title:
@@ -251,52 +226,4 @@ function SignUpForm({ onAuthSuccess }: { onAuthSuccess?: () => void }) {
 			</Button>
 		</form>
 	);
-}
-
-function getErrorMessage(error: unknown) {
-	return error instanceof Error ? error.message : undefined;
-}
-
-async function waitForAuthSession() {
-	for (let attempt = 0; attempt < 5; attempt += 1) {
-		const { data, error } = await authClient.getSession();
-		if (hasSession(data)) {
-			return;
-		}
-
-		if (error && attempt === 4) {
-			throw new Error(error.message ?? "Chargement de la session impossible");
-		}
-
-		await delay(100 * (attempt + 1));
-	}
-
-	throw new Error("Compte créé, mais la session n’est pas encore prête");
-}
-
-function hasSession(value: unknown) {
-	return Boolean(
-		readNestedString(value, "user", "id") ??
-			readNestedString(value, "session", "userId"),
-	);
-}
-
-function delay(ms: number) {
-	return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function readNestedString(value: unknown, objectKey: string, fieldKey: string) {
-	if (!value || typeof value !== "object") {
-		return null;
-	}
-
-	const record = value as Record<string, unknown>;
-	const nested = record[objectKey];
-	if (!nested || typeof nested !== "object") {
-		return null;
-	}
-
-	const nestedRecord = nested as Record<string, unknown>;
-	const fieldValue = nestedRecord[fieldKey];
-	return typeof fieldValue === "string" ? fieldValue : null;
 }

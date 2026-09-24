@@ -146,7 +146,7 @@ Use this path when the feature should be available to the UI, REST clients, MCP 
 
 1. Define input/output schemas and route shape in `app/lib/orpc/contract.ts`.
 2. Implement the handler in `app/lib/orpc/router.ts`.
-3. Require identity or membership with `app/lib/orpc/authorization.ts`.
+3. Require the signed-in user with `requireAuthenticatedActor` from `app/lib/orpc/authorization.ts`.
 4. Put database reads/writes and ownership checks in `app/db/<feature>.ts`.
 5. Call the capability from route loaders with `context.getOrpc()`.
 6. Use a typed client mutation after hydration and explicitly revalidate.
@@ -156,7 +156,7 @@ Do not add hand-written REST handlers for feature capabilities. `/api/v1/*` is g
 ## Add A D1 Table
 
 1. Add a focused schema export in `app/db/schema.ts` or a file exported by it.
-2. Include ownership columns such as `organizationId` when data is tenant-scoped.
+2. Include a `userId` ownership column on user-owned data.
 3. Add indexes for ownership and common list filters.
 4. Create a repository in `app/db/<feature>.ts`.
 5. Generate a migration:
@@ -188,15 +188,13 @@ Server-side code should:
 
 - derive the current user from the Better Auth session or API key session
 - support MCP OAuth sessions through the authenticated oRPC context
-- derive active organization from the session or membership tables
-- use `requireAuthenticatedActor`, `requireActiveOrganizationMembership`, or `requireOrganizationMembership` from `app/lib/orpc/authorization.ts`
-- enforce membership in repositories/services
+- use `requireAuthenticatedActor` from `app/lib/orpc/authorization.ts`
+- scope every query to the actor's `userId` in repositories/services
 - reject unauthorized access with an error
 
 Do not:
 
 - trust client-provided `userId`
-- trust client-provided `organizationId`
 - hide auth failures by returning `[]`, `null`, or `{}` as fake success
 
 ## Client/Server Boundary

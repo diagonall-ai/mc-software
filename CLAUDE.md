@@ -28,7 +28,7 @@ Assume the user is not technical.
 - Routing and SSR: TanStack Start and TanStack Router.
 - Machine API: oRPC contract/router, generated OpenAPI, and MCP execution tools.
 - UI: shadcn/ui on Base UI (`base-vega` style), Tailwind CSS v4, lucide icons.
-- AI agents: Cloudflare Think, only when the app needs an AI assistant.
+- AI: Cloudflare Workers AI through the `AI` binding; Cloudflare Think for AI agents.
 - Package manager: `pnpm` only.
 
 ## Cloudflare Only
@@ -62,26 +62,25 @@ Use Drizzle for application repositories. Use prepared statements if writing raw
 
 ## Auth Rules
 
-Better Auth is the only auth system.
+Better Auth is the only auth system. Each user owns their own data; there are no organizations or teams.
 
 Preserve:
 
 - email/password auth
-- organization plugin behavior
 - API key auth
 - MCP OAuth support
 - signup password guard
 - trusted origins
 - explicit base URL handling
 
-Default organizations are created after signup/session success, not before account creation. If two users would receive the same default organization slug, suffix the slug so signup still succeeds.
+Do not add the Better Auth organization plugin or shared-workspace tables unless the user explicitly asks for teams.
 
 Auth checks belong in two layers:
 
 - route guards for user experience
-- server-side authorization in oRPC handlers and `app/db/` repositories
+- server-side authorization in oRPC handlers and `app/db/` repositories: scope every read and write to the signed-in user's id from `requireAuthenticatedActor`
 
-Never trust a client-provided `userId` or `organizationId` for authorization.
+Never trust a client-provided `userId` for authorization.
 
 ## Routing And Data Flow
 
@@ -113,7 +112,13 @@ Do not add hand-written REST handlers for feature capabilities in route files.
 
 The OpenAPI route and MCP tools are derived from the oRPC surface.
 
-## AI Agents
+## AI Features
+
+All AI runs on Cloudflare Workers AI through the `AI` binding (`"ai": { "binding": "AI" }` in `wrangler.jsonc`), called from the AI SDK with `workers-ai-provider`. Do not add OpenAI, Anthropic, or other model providers or API keys unless the user explicitly asks.
+
+AI features only work once the app is deployed. Tell the user this before they try one, and have them test it on the deployed URL, not on localhost.
+
+One-off AI features without memory or tools (summarize a record, draft a text) use a plain AI SDK call (`generateText`, `streamText`) with `createWorkersAI({ binding: env.AI })` in a server function.
 
 When the user wants an AI assistant, chat agent, or agent harness inside their app, build it with Cloudflare Think (`@cloudflare/think`): https://developers.cloudflare.com/agents/harnesses/think/
 
@@ -121,10 +126,9 @@ When the user wants an AI assistant, chat agent, or agent harness inside their a
 - The agent is a class extending `Think`, stored as a Durable Object with SQLite storage. Override `getModel()` (Workers AI through the `AI` binding by default), `getSystemPrompt()`, and `getTools()`. Think handles streaming, message persistence, and the tool loop.
 - `wrangler.jsonc` needs an `ai` binding, a `durable_objects` binding for the class, and a `migrations` entry with `new_sqlite_classes`. Raise `compatibility_date` if the Think docs require it.
 - Durable Object classes must be exported from the Worker entry. Add a custom server entry (`app/server.ts`) that exports the agent class, sends agent requests to `routeAgentRequest` from `agents`, and passes everything else to the `@tanstack/react-start/server-entry` handler. Point `main` in `wrangler.jsonc` at it.
-- Check the Better Auth session before a request reaches the agent, and derive the agent instance name from the signed-in user or organization. Never trust a client-provided instance name.
+- Check the Better Auth session before a request reaches the agent, and derive the agent instance name from the signed-in user's id. Never trust a client-provided instance name.
 - In the browser, use `useAgent` from `agents/react` with `useAgentChat` from `@cloudflare/ai-chat/react`, and render with the chat components listed in UI Rules.
 - Agent tools that read or change app data call the same `app/db/` repositories as the oRPC handlers, with the same authorization checks.
-- One-off AI features without memory or tools (summarize a record, draft a text) use a plain AI SDK call (`generateText`, `streamText`) in a server function, not Think.
 
 ## Bootstrap Rules
 

@@ -19,7 +19,7 @@ The starter uses Cloudflare D1 with Drizzle:
 - config: `drizzle.config.ts`
 - runtime binding: `env.DB`
 
-Better Auth tables include user, session, account, verification, organization, member, invitation, API key, OAuth application/token/consent, and MCP requirements.
+Better Auth tables include user, session, account, verification, API key, and OAuth application/token/consent (for MCP).
 
 ## Runtime Database Access
 
@@ -48,14 +48,13 @@ Ownership must be enforceable in server-side repositories/services, not inferred
 Rules:
 
 - derive the current user from Better Auth server-side
-- derive active organization from the session or the membership table
-- use `app/lib/orpc/authorization.ts` helpers before tenant-scoped reads or writes
-- check organization ownership before reads, writes, deletes, and exports
+- use `requireAuthenticatedActor` from `app/lib/orpc/authorization.ts` before user-owned reads or writes
+- check `userId` ownership before reads, writes, deletes, and exports
 - reject unauthorized writes with an error
 
 Do not:
 
-- accept a `userId` or `organizationId` from the client and trust it
+- accept a `userId` from the client and trust it
 - rely on route guards alone for data protection
 - return fake empty data for authorization or database failures
 
