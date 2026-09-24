@@ -58,6 +58,9 @@ export function handleOAuthProtectedResource(origin: string): Response {
 		resource: `${origin}/api/mcp`,
 		authorization_servers: [`${origin}/api/auth`],
 		bearer_methods_supported: ["header"],
+		// MCP clients request these. offline_access gets them a refresh token, so
+		// users stay connected after the one-hour access token expires.
+		scopes_supported: ["openid", "profile", "email", "offline_access"],
 	});
 }
 

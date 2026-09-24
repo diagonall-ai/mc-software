@@ -8,7 +8,15 @@ export const auth = {
 		}: {
 			headers: Headers;
 		}): Promise<McpSession | null> {
-			return await authServer.api.getMcpSession({ headers });
+			// Only the bearer token matters. Passing every header would let an
+			// invalid x-api-key make Better Auth throw instead of returning null.
+			const authorization = headers.get("authorization");
+			if (!authorization) {
+				return null;
+			}
+			return await authServer.api.getMcpSession({
+				headers: new Headers({ authorization }),
+			});
 		},
 	},
 };

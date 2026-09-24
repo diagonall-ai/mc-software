@@ -14,6 +14,7 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.jsonc",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote --config wrangler.jsonc",
     "seed:dev": "node scripts/seed-dev.mjs",
+    "smoke": "node scripts/smoke-api-mcp.mjs",
     "integration": "node scripts/integration.ts",
     "integration:check": "node scripts/check-integrations.ts",
     "typecheck": "tsc --noEmit",

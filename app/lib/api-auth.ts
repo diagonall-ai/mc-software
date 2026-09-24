@@ -38,7 +38,9 @@ export async function resolveAuthSession(
 ): Promise<ApiAuthResult | null> {
 	const response = await authHandler(createAuthRequest(headers));
 
-	if (response.status === 401) {
+	// Better Auth answers 403 for an unknown or revoked API key. Both mean "not
+	// signed in": callers answer 401, and MCP clients then sign in again.
+	if (response.status === 401 || response.status === 403) {
 		return null;
 	}
 
