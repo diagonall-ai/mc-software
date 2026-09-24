@@ -8,8 +8,8 @@ AI agents should also read [AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md) before addin
 
 ## What This Project Needs
 
-- Node.js and pnpm
-- Cloudflare Wrangler authenticated with the target account
+- Node.js (LTS, 22.12 or newer) and pnpm
+- Cloudflare Wrangler, installed by `pnpm install`, run as `pnpm wrangler`, and authenticated with the target account
 - A D1 database bound as `DB`
 - Better Auth secrets stored as Worker secrets or local `.dev.vars`
 - Drizzle migrations generated from `app/db/schema.ts`
@@ -51,7 +51,7 @@ Verify that `wrangler.jsonc` contains:
 
 ## 3. Configure Local Runtime Secrets
 
-Create `.dev.vars` locally. Do not commit it.
+The template ships a ready-to-run `.dev.vars` with local example values. It is gitignored, so it stays out of the new app's commits. Make sure it contains:
 
 ```env
 BETTER_AUTH_SECRET=replace-with-a-random-secret

@@ -8,7 +8,7 @@ The repository is a reusable bootstrap template. Your job is to preserve the tem
 
 Read these files before changing code:
 
-1. `AGENTS.md` for non-negotiable architecture and anti-drift rules.
+1. `CLAUDE.md` for non-negotiable architecture and anti-drift rules.
 2. `README.md` for stack, commands, and project map.
 3. `BOOTSTRAP.md` when copying this template into a new app.
 4. `FEATURES.md` before adding routes, pages, or capabilities.
@@ -16,7 +16,7 @@ Read these files before changing code:
 6. `ROUTING_AND_DATA_FLOW.md` before wiring loaders or mutations.
 7. `UI_SYSTEM.md` before changing UI primitives or dashboard surfaces.
 
-If those docs conflict, prefer `AGENTS.md` for boundaries and `BOOTSTRAP.md` for setup sequence.
+If those docs conflict, prefer `CLAUDE.md` for boundaries and `BOOTSTRAP.md` for setup sequence.
 
 ## Mental Model
 
@@ -248,13 +248,12 @@ http://localhost:3934/api/v1/docs
 Before finishing, search for:
 
 ```bash
-rg -n "convex|Convex|Molteni|molteni|ecomaison|showroom|declaration|npm run|yarn|bun" \
-  AGENTS.md README.md BOOTSTRAP.md AI_AGENT_GUIDE.md DATA_MODEL.md FEATURES.md ROUTING_AND_DATA_FLOW.md UI_SYSTEM.md TEMPLATE_BOOTSTRAP_PROMPT.md app
+rg -n "Molteni|molteni|ecomaison|showroom|declaration|npm run|yarn|bun" \
+  CLAUDE.md README.md BOOTSTRAP.md AI_AGENT_GUIDE.md DATA_MODEL.md FEATURES.md ROUTING_AND_DATA_FLOW.md UI_SYSTEM.md TEMPLATE_BOOTSTRAP_PROMPT.md app
 ```
 
 Expected allowed matches:
 
-- `AGENTS.md` may mention Convex only inside the explicit removed-stack warning.
 - package-manager names may appear only in instructions saying not to use them.
 
 ## Verification
