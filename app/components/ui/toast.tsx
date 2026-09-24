@@ -39,8 +39,9 @@ function Toast({ className, ...props }: ToastPrimitive.Root.Props) {
 	return (
 		<ToastPrimitive.Root
 			data-slot="toast"
+			// Not stock: brand blue (red for errors) with the pressable buttons hard edge and offset shadow.
 			className={cn(
-				"group/toast pointer-events-auto absolute right-0 bottom-0 z-[calc(1000-var(--toast-index))] w-full origin-bottom rounded-2xl border bg-popover text-popover-foreground shadow-lg will-change-transform outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+				"group/toast pointer-events-auto absolute right-0 bottom-0 z-[calc(1000-var(--toast-index))] w-full origin-bottom rounded-2xl border border-(--toast-edge) bg-(--toast) text-(--toast-foreground) shadow-[4px_4px_0_var(--toast-edge)] will-change-transform data-[type=error]:[--toast-foreground:var(--destructive-foreground)] data-[type=error]:[--toast:var(--destructive)] dark:data-[type=error]:[--toast-edge:color-mix(in_oklab,var(--destructive)_55%,black)] outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
 				"[--gap:0.75rem] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))]",
 				"h-(--height) [transform:translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)-(var(--toast-index)*var(--peek))-(var(--shrink)*var(--height))))_scale(var(--scale))] [transition:transform_500ms_cubic-bezier(0.22,1,0.36,1),opacity_500ms,height_150ms]",
 				"after:absolute after:top-full after:left-0 after:h-[calc(var(--gap)+1px)] after:w-full after:content-['']",
@@ -92,7 +93,7 @@ function ToastDescription({
 	return (
 		<ToastPrimitive.Description
 			data-slot="toast-description"
-			className={cn("text-sm text-muted-foreground", className)}
+			className={cn("text-sm opacity-80", className)}
 			{...props}
 		/>
 	);
@@ -125,7 +126,7 @@ function ToastClose({
 			aria-label="Close toast"
 			render={render}
 			className={cn(
-				"relative shrink-0 text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:text-foreground",
+				"relative shrink-0 text-current opacity-70 after:absolute after:-inset-2 after:content-[''] hover:bg-current/10 hover:text-current hover:opacity-100 dark:hover:bg-current/10",
 				className,
 			)}
 			{...props}
@@ -151,7 +152,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
 	}
 
 	if (type === "error") {
-		icon = <OctagonXIcon className="text-destructive" aria-hidden="true" />;
+		icon = <OctagonXIcon aria-hidden="true" />;
 	}
 
 	if (type === "loading") {
