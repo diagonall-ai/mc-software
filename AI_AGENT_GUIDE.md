@@ -242,6 +242,14 @@ http://localhost:3934/api/v1/openapi.json
 http://localhost:3934/api/v1/docs
 ```
 
+Third-party integrations are tested before they reach the app, against the real service:
+
+```bash
+pnpm integration pennylane listSupplierInvoices '{"limit": 2}'
+```
+
+See "Test It From The Terminal" in `INTEGRATIONS.md`.
+
 ## Anti-Drift Checklist
 
 Before finishing, search for:

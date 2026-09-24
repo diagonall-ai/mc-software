@@ -106,7 +106,7 @@ export class Pennylane {
 			sort?: "id" | "-id" | "date" | "-date";
 		} = {},
 	) {
-		return this.call("/supplier_invoices", page(SupplierInvoice), {
+		return this.#call("/supplier_invoices", page(SupplierInvoice), {
 			query: {
 				cursor: options.cursor,
 				filter: options.filter && JSON.stringify(options.filter),
@@ -116,11 +116,7 @@ export class Pennylane {
 		});
 	}
 
-	private call<A>(
-		path: string,
-		schema: Schema.Decoder<A>,
-		options: CallOptions = {},
-	) {
+	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
 		return request({
 			...options,
 			headers: { Authorization: `Bearer ${this.#apiToken}` },

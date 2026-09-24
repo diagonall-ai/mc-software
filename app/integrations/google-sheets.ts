@@ -19,7 +19,10 @@
  *   iam.disableServiceAccountKeyCreation and
  *   iam.managed.disableServiceAccountKeyCreation. If that is refused, upload
  *   the Sheet as CSV instead.
- * - Secret: GOOGLE_SERVICE_ACCOUNT_KEY, the whole downloaded JSON file.
+ * - Secret: GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY, the whole downloaded JSON file.
+ *   In .dev.vars, put it on one line between single quotes: double quotes
+ *   break the key. In production: `pnpm wrangler secret put
+ *   GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY < key.json`.
  *
  * API facts:
  * - The shell signs a JWT with the key (WebCrypto), trades it for a one-hour
@@ -50,7 +53,7 @@ const ServiceAccountKey = Schema.fromJsonString(
 );
 
 export class GoogleSheets {
-	/** `GoogleSheets.init({ serviceAccountKey: env.GOOGLE_SERVICE_ACCOUNT_KEY })` */
+	/** `GoogleSheets.init({ serviceAccountKey: env.GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY })` */
 	static init(credentials: { serviceAccountKey: string }): GoogleSheets {
 		return new GoogleSheets(credentials.serviceAccountKey);
 	}
@@ -70,7 +73,7 @@ export class GoogleSheets {
 	 * the tab name has spaces), or "Clients" for a whole tab.
 	 */
 	readRange(spreadsheetId: string, range: string) {
-		return this.call(
+		return this.#call(
 			`/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`,
 			Schema.Struct({
 				values: Schema.optional(Schema.Array(Schema.Array(Schema.String))),
@@ -78,12 +81,8 @@ export class GoogleSheets {
 		).pipe(Effect.map((body) => body.values ?? []));
 	}
 
-	private call<A>(
-		path: string,
-		schema: Schema.Decoder<A>,
-		options: CallOptions = {},
-	) {
-		return this.accessToken().pipe(
+	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
+		return this.#accessToken().pipe(
 			Effect.flatMap((token) =>
 				request({
 					...options,
@@ -96,7 +95,7 @@ export class GoogleSheets {
 		);
 	}
 
-	private accessToken() {
+	#accessToken() {
 		const keyFile = this.#serviceAccountKey;
 		return Effect.gen(function* () {
 			const key = yield* Schema.decodeUnknownEffect(ServiceAccountKey)(

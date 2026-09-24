@@ -1,5 +1,5 @@
 // Checks the shared rules of app/integrations/ against a fake fetch, without
-// calling any real service. Run: node scripts/check-integrations.ts
+// calling any real service. Run: pnpm integration:check
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import { Effect, Result, Schema } from "effect";

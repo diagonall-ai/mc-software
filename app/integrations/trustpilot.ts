@@ -80,7 +80,7 @@ export class Trustpilot {
 			orderBy?: "createdat.desc" | "createdat.asc" | "stars.desc" | "stars.asc";
 		} = {},
 	) {
-		return this.call(`/business-units/${businessUnitId}/reviews`, ReviewPage, {
+		return this.#call(`/business-units/${businessUnitId}/reviews`, ReviewPage, {
 			query: {
 				orderBy: options.orderBy ?? "createdat.desc",
 				page: options.page,
@@ -89,11 +89,7 @@ export class Trustpilot {
 		});
 	}
 
-	private call<A>(
-		path: string,
-		schema: Schema.Decoder<A>,
-		options: CallOptions = {},
-	) {
+	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
 		return request({
 			...options,
 			headers: { apikey: this.#apiKey },

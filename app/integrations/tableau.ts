@@ -17,7 +17,8 @@
  * - Tableau Cloud or Server? Take the host from the browser address bar
  *   (`https://10ax.online.tableau.com`, not `online.tableau.com`) and the site
  *   from the URL part after `#/site/` (empty for the default site on Server).
- * - Secrets: TABLEAU_HOST, TABLEAU_SITE, TABLEAU_PAT_NAME, TABLEAU_PAT_SECRET.
+ * - Secrets: TABLEAU_HOST, TABLEAU_SITE, TABLEAU_TOKEN_NAME,
+ *   TABLEAU_TOKEN_SECRET.
  * - The BP Excel does not come from Tableau: it is a file upload in the app.
  *
  * API facts:
@@ -67,7 +68,7 @@ interface TableauCredentials {
 
 export class Tableau {
 	/**
-	 * `Tableau.init({ host: env.TABLEAU_HOST, site: env.TABLEAU_SITE, tokenName: env.TABLEAU_PAT_NAME, tokenSecret: env.TABLEAU_PAT_SECRET })`
+	 * `Tableau.init({ host: env.TABLEAU_HOST, site: env.TABLEAU_SITE, tokenName: env.TABLEAU_TOKEN_NAME, tokenSecret: env.TABLEAU_TOKEN_SECRET })`
 	 */
 	static init(credentials: TableauCredentials): Tableau {
 		return new Tableau(credentials);
@@ -97,20 +98,20 @@ export class Tableau {
 				value,
 			]),
 		);
-		return this.call(`/views/${viewId}/data`, Schema.String, {
+		return this.#call(`/views/${viewId}/data`, Schema.String, {
 			parse: "text",
 			query: { ...filters, maxAge: options.maxAgeMinutes },
 		});
 	}
 
-	private call<A>(
+	#call<A>(
 		path: string,
 		schema: Schema.Decoder<A>,
 		options: CallOptions = {},
 		signInAgain = true,
 	): Effect.Effect<A, IntegrationError> {
 		const { host } = this.#credentials;
-		return this.session().pipe(
+		return this.#session().pipe(
 			Effect.flatMap(({ token, siteId }) =>
 				request({
 					...options,
@@ -127,7 +128,7 @@ export class Tableau {
 						(error) => signInAgain && error.reason === "unauthorized",
 						() => {
 							forgetToken(this.#cacheKey());
-							return this.call(path, schema, options, false);
+							return this.#call(path, schema, options, false);
 						},
 					),
 				),
@@ -135,7 +136,7 @@ export class Tableau {
 		);
 	}
 
-	private session() {
+	#session() {
 		const { host, site, tokenName, tokenSecret } = this.#credentials;
 		return cachedToken(
 			this.#cacheKey(),

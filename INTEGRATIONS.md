@@ -9,8 +9,8 @@ A shell ships with one example method. When the user needs more data from a serv
 | Service | File | Used by | Secrets | Watch out |
 |---|---|---|---|---|
 | Pennylane | `pennylane.ts` | Revue fournisseurs | `PENNYLANE_API_TOKEN` | Essentiel plan or higher; one token per company |
-| Tableau | `tableau.ts` | Cockpit Comex | `TABLEAU_HOST`, `TABLEAU_SITE`, `TABLEAU_PAT_NAME`, `TABLEAU_PAT_SECRET` | One session per token; data sources need "API Access" for VizQL |
-| Google Sheets | `google-sheets.ts` | Retention Hub | `GOOGLE_SERVICE_ACCOUNT_KEY` | Recent Google Cloud organizations block key creation by default |
+| Tableau | `tableau.ts` | Cockpit Comex | `TABLEAU_HOST`, `TABLEAU_SITE`, `TABLEAU_TOKEN_NAME`, `TABLEAU_TOKEN_SECRET` | One session per token; data sources need "API Access" for VizQL |
+| Google Sheets | `google-sheets.ts` | Retention Hub | `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY` | Recent Google Cloud organizations block key creation by default |
 | Zendesk | `zendesk.ts` | Voix du client | `ZENDESK_SUBDOMAIN`, `ZENDESK_CLIENT_ID`, `ZENDESK_CLIENT_SECRET` | Use an OAuth client: API tokens are being retired |
 | Trustpilot | `trustpilot.ts` | Voix du client | `TRUSTPILOT_API_KEY` | Needs the API Module (Premium add-on, or Enterprise) |
 | HubSpot | `hubspot.ts` | Prospection Cleaq | `HUBSPOT_SERVICE_KEY` | Use a Service Key, not a private app |
@@ -24,7 +24,7 @@ The comment at the top of each shell is the source of truth: docs and OpenAPI li
 export class Pennylane {
   static init(credentials: { apiToken: string }): Pennylane; // credentials in, no network call
   listSupplierInvoices(options): Effect<Page, IntegrationError>; // one method per endpoint
-  private call(path, schema, options); // base URL + auth, then request()
+  #call(path, schema, options); // private: base URL + auth, then request()
 }
 ```
 
@@ -41,12 +41,32 @@ Services that trade credentials for a short-lived token (Zendesk, Google Sheets,
 
 1. Read the shell's header comment. Explain in plain words who must create the key and where, and check the plan requirement. Use `AskUserQuestion` for "Who is your admin on X?" or "Which plan do you have?".
 2. The user creates the key in their browser and pastes it into the chat. Ask for a read-only key whenever the service offers one.
-3. Store it, never in code:
+3. Store it, never in code. A secret is named after the shell file and the `init` field it fills, in capitals: `pennylane.ts` + `apiToken` is `PENNYLANE_API_TOKEN`, `google-sheets.ts` + `serviceAccountKey` is `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY`. The test command relies on it.
    - locally: add `NAME=value` to `.dev.vars`;
    - types: run `pnpm wrangler types worker-configuration.d.ts -c wrangler.jsonc --include-runtime false` so `env.NAME` is typed;
    - production: `printf '%s' 'value' | pnpm wrangler secret put NAME`.
-4. Test the connection right away with the example method (see below), before building any screen. Third-party APIs work on localhost; only Workers AI needs a deploy.
+4. Test the connection right away with `pnpm integration` (next section), before building any screen.
 5. Note in `APP_BRIEF.md` which services are connected, whose account each key belongs to, and when it expires.
+
+## Test It From The Terminal
+
+Run every new or changed method against the real service before wiring it into the app. The user should never be the first to see an integration error.
+
+```bash
+pnpm integration pennylane listSupplierInvoices '{"limit": 2}'
+pnpm integration google-sheets readRange 1AbCdEf "Clients!A1:C5"
+pnpm integration zendesk exportTickets '{"since": "2026-09-01"}'
+```
+
+- It reads the secrets from `.dev.vars` and prints their names, never their values.
+- Arguments are read as JSON when they parse (`'{"limit": 2}'`, `42`, `true`) and as text otherwise. Quote a number that must stay text: `'"12345"'`.
+- It prints each HTTP call (method, URL, status, time), then the result, or the `reason`, French `message` and `detail` of the error. It exits with 1 on failure.
+- `pnpm integration` alone lists the shells; `pnpm integration pennylane` lists its methods.
+- Ask for two or three items (`limit`): enough to see the shape, and less customer data in the conversation.
+- Not sure what the service returns? Declare the method with `Schema.Unknown`, run it, then declare the fields you need from the real response.
+- Third-party APIs work from localhost: no deploy needed (only Workers AI needs one).
+
+Once the method works here, add the oRPC capability and check it through the app (see "API And MCP Smoke Tests" in `AI_AGENT_GUIDE.md`).
 
 When a call fails, the `reason` says why:
 
@@ -66,8 +86,10 @@ When a call fails, the `reason` says why:
 2. Copy the example method and name it after what it does: `listSuppliers`, `getInvoice`, `exportTickets`.
 3. Declare only the fields the app uses. `Schema.NullOr(...)` for fields that can be `null`, `Schema.optional(...)` for fields that can be missing. Keep money amounts as strings, and convert to cents before adding them.
 4. Stay read-only. Before adding a method that writes, sends a message or spends credits, ask the user. Pass `retries: 0` for writes that must not run twice.
-5. Return one page and its cursor. Let the caller loop (below).
-6. Add the scope or permission the endpoint needs to the header comment.
+5. Take plain JSON arguments (text, numbers, booleans, lists, objects): no `Date` or class instances, so the test command, oRPC and MCP can all pass them.
+6. Return one page and its cursor. Let the caller loop (below).
+7. Add the scope or permission the endpoint needs to the header comment.
+8. Run it with `pnpm integration` and fix what it reports.
 
 ## Call It From The App
 
@@ -130,12 +152,13 @@ Most of these services have tight quotas: Trustpilot about 550 calls a day, Goog
 1. Research it: docs, OpenAPI file (many docs sites publish `llms.txt`, or a `.md` version of each page), auth, rate limits, pagination, who creates the key and on which plan.
 2. Copy the closest shell: `pennylane.ts` for a plain key, `zendesk.ts` for credentials traded for a token, `tableau.ts` for a sign-in session.
 3. Write the header comment first: it is the guide for getting the key.
-4. Keep the shape: `static init({ ... })`, one example method, a `private call`, everything through `request`.
-5. Add a row to the table above.
+4. Keep the shape: `static init({ ... })`, one example method, a private `#call`, everything through `request`. Never import `cloudflare:workers` in a shell: credentials come in through `init`, which is what lets `pnpm integration` run it.
+5. Name the secrets `<FILE>_<INIT_FIELD>` and try the example method with `pnpm integration`.
+6. Add a row to the table above.
 
 ## Effect v4 Notes
 
-- The app pins `effect@4.0.0-rc.117`. Release candidates can still change APIs: upgrade on purpose, then run `pnpm typecheck` and `node scripts/check-integrations.ts`.
+- The app pins `effect@4.0.0-rc.117`. Release candidates can still change APIs: upgrade on purpose, then run `pnpm typecheck` and `pnpm integration:check`.
 - An `Effect` is a description of work; nothing runs until `runIntegration` (or `Effect.runPromise`) runs it.
 - v4 names differ from most examples online: `Result` instead of `Either`, `Effect.result`, `Schema.decodeUnknownEffect`, `Schema.Decoder<A>`, `Duration.Input`. See the [v3 to v4 migration guide](https://github.com/Effect-TS/effect-smol/blob/main/MIGRATION.md).
-- `node scripts/check-integrations.ts` checks retries, error mapping, the Google token signature and Tableau's sign-in against a fake server. Run it after changing `http.ts`.
+- `pnpm integration:check` checks retries, error mapping, the Google token signature and Tableau's sign-in against a fake server, without keys. Run it after changing `http.ts`.

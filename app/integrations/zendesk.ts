@@ -83,23 +83,22 @@ export class Zendesk {
 	 * as `cursor` until `end_of_stream` is true. Save the last cursor to resume
 	 * from there next time. Deleted tickets are left out.
 	 */
-	exportTickets(from: { since: Date } | { cursor: string }) {
-		return this.call("/incremental/tickets/cursor", TicketExport, {
+	exportTickets(
+		/** `since`: a date such as "2026-09-01", at least a minute ago. */
+		from: { since: string } | { cursor: string },
+	) {
+		return this.#call("/incremental/tickets/cursor", TicketExport, {
 			query: {
 				...("cursor" in from
 					? { cursor: from.cursor }
-					: { start_time: Math.floor(from.since.getTime() / 1000) }),
+					: { start_time: Math.floor(Date.parse(from.since) / 1000) }),
 				exclude_deleted: true,
 			},
 		});
 	}
 
-	private call<A>(
-		path: string,
-		schema: Schema.Decoder<A>,
-		options: CallOptions = {},
-	) {
-		return this.accessToken().pipe(
+	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
+		return this.#accessToken().pipe(
 			Effect.flatMap((token) =>
 				request({
 					...options,
@@ -112,7 +111,7 @@ export class Zendesk {
 		);
 	}
 
-	private accessToken() {
+	#accessToken() {
 		const { subdomain, clientId, clientSecret } = this.#credentials;
 		return cachedToken(
 			`zendesk:${subdomain}:${clientId}`,

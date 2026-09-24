@@ -83,7 +83,7 @@ export class HubSpot {
 			properties?: string[];
 		} = {},
 	) {
-		return this.call(`/crm/objects/${VERSION}/contacts`, ContactPage, {
+		return this.#call(`/crm/objects/${VERSION}/contacts`, ContactPage, {
 			query: {
 				after: options.after,
 				limit: options.limit,
@@ -92,11 +92,7 @@ export class HubSpot {
 		});
 	}
 
-	private call<A>(
-		path: string,
-		schema: Schema.Decoder<A>,
-		options: CallOptions = {},
-	) {
+	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
 		return request({
 			...options,
 			headers: { Authorization: `Bearer ${this.#serviceKey}` },

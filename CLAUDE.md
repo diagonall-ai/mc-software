@@ -140,6 +140,7 @@ Connect external services through the shells in `app/integrations/`, following `
 - Run shells only on the server (oRPC handlers, server functions, scheduled jobs), through `runIntegration`.
 - Credentials are Worker secrets: `.dev.vars` locally, `pnpm wrangler secret put` in production. Never in code or in the browser.
 - Stay read-only. Ask the user before adding a method that writes, sends messages, or spends credits.
+- Test every new or changed shell method against the real service with `pnpm integration <shell> <method> [args]` before wiring it into the app, and fix what it reports. The user should never be the first to hit an integration error.
 
 ## Bootstrap Rules
 
@@ -201,6 +202,8 @@ pnpm typecheck
 pnpm build
 pnpm wrangler deploy --dry-run --config dist/server/wrangler.json
 ```
+
+For changes in `app/integrations/`, also run `pnpm integration:check`, and call each new or changed method once with `pnpm integration <shell> <method> [args]`.
 
 For D1 schema changes, also run:
 

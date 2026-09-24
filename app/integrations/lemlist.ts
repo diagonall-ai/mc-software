@@ -69,7 +69,7 @@ export class Lemlist {
 			status?: "running" | "draft" | "archived" | "ended" | "paused" | "errors";
 		} = {},
 	) {
-		return this.call("/campaigns", Schema.Array(Campaign), {
+		return this.#call("/campaigns", Schema.Array(Campaign), {
 			query: {
 				limit: options.limit ?? 100,
 				offset: options.offset,
@@ -79,11 +79,7 @@ export class Lemlist {
 		});
 	}
 
-	private call<A>(
-		path: string,
-		schema: Schema.Decoder<A>,
-		options: CallOptions = {},
-	) {
+	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
 		return request({
 			...options,
 			headers: { Authorization: basicAuth("", this.#apiKey) },
