@@ -31,6 +31,11 @@ import {
 	DashboardFooterRightPortal,
 } from "~/components/dashboard/shell-portals";
 import { DataTable } from "~/components/data-table/data-table";
+import {
+	ChatShowcase,
+	QuestionnaireShowcase,
+} from "~/components/design-system/chat-showcase";
+import { ShowcaseCard } from "~/components/design-system/showcase-card";
 import { MarkdownRenderer } from "~/components/markdown/markdown-renderer";
 import {
 	Accordion,
@@ -81,7 +86,6 @@ import {
 import { Calendar } from "~/components/ui/calendar";
 import {
 	Card,
-	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
@@ -541,6 +545,8 @@ function DesignSystemPage() {
 					<SidebarShowcase />
 					<DisplayShowcase />
 					<MarkdownShowcase />
+					<ChatShowcase />
+					<QuestionnaireShowcase />
 					<AiElementsShowcase />
 					<TypographyShowcase />
 				</div>
@@ -593,28 +599,6 @@ function PageIntro() {
 					component.
 				</CardDescription>
 			</CardHeader>
-		</Card>
-	);
-}
-
-function ShowcaseCard({
-	title,
-	description,
-	children,
-	className,
-}: {
-	title: string;
-	description: string;
-	children: React.ReactNode;
-	className?: string;
-}) {
-	return (
-		<Card className={className}>
-			<CardHeader>
-				<CardTitle>{title}</CardTitle>
-				<CardDescription>{description}</CardDescription>
-			</CardHeader>
-			<CardContent>{children}</CardContent>
 		</Card>
 	);
 }
@@ -2261,8 +2245,8 @@ function AiElementsShowcase() {
 	return (
 		<ShowcaseCard
 			className="border-border/70 xl:col-span-2"
-			description="AI Elements registry components installed into the app and rendered as a reusable chatbot scaffold."
-			title="AI Elements"
+			description="Chatbot scaffold: shadcn chat primitives for the thread, AI Elements for prompt input, reasoning, sources, suggestions, and model selection."
+			title="AI chatbot"
 		>
 			<div className="space-y-3">
 				<div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
@@ -2274,7 +2258,7 @@ function AiElementsShowcase() {
 					</span>
 				</div>
 				<div className="overflow-hidden rounded-2xl border border-border/70 bg-background/70">
-					<div className="min-h-[42rem]">
+					<div className="h-[42rem]">
 						<ExampleChatbot />
 					</div>
 				</div>

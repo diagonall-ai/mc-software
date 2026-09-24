@@ -25,8 +25,9 @@ function ToastViewport({ className, ...props }: ToastPrimitive.Viewport.Props) {
 	return (
 		<ToastPrimitive.Viewport
 			data-slot="toast-viewport"
+			// Not stock (z-50): toasts must stay above open dialogs and drawers.
 			className={cn(
-				"pointer-events-none fixed inset-x-4 bottom-4 z-50 mx-auto w-auto max-w-sm outline-none sm:right-4 sm:left-auto sm:mx-0 sm:w-full",
+				"pointer-events-none fixed inset-x-4 bottom-4 z-100 mx-auto w-auto max-w-sm outline-none sm:right-4 sm:left-auto sm:mx-0 sm:w-full",
 				className,
 			)}
 			{...props}

@@ -248,13 +248,14 @@ http://localhost:3934/api/v1/docs
 Before finishing, search for:
 
 ```bash
-rg -n "Molteni|molteni|ecomaison|showroom|declaration|npm run|yarn|bun" \
+rg -n "Molteni|molteni|ecomaison|showroom|declaration|npm run|yarn|bun|asChild|radix-ui|@radix-ui|sonner" \
   CLAUDE.md README.md BOOTSTRAP.md AI_AGENT_GUIDE.md DATA_MODEL.md FEATURES.md ROUTING_AND_DATA_FLOW.md UI_SYSTEM.md TEMPLATE_BOOTSTRAP_PROMPT.md app
 ```
 
 Expected allowed matches:
 
 - package-manager names may appear only in instructions saying not to use them.
+- `asChild`, Radix, and `sonner` may appear only in rules saying not to use them (`CLAUDE.md`, `UI_SYSTEM.md`) and in comments inside vendored `app/components/ui/` files.
 
 ## Verification
 

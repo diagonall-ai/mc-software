@@ -10,7 +10,8 @@ This repo uses the shadcn registry config in `components.json`.
 
 Important settings:
 
-- style: `new-york`
+- style: `base-vega` (Base UI primitives, Vega look)
+- icons: `lucide`
 - css file: `app/app.css`
 - aliases:
   - `~/components`
@@ -27,10 +28,12 @@ Current local primitives in `app/components/ui/`:
 - `alert`
 - `alert-dialog`
 - `aspect-ratio`
+- `attachment`
 - `avatar`
 - `badge`
 - `banner`
 - `breadcrumb`
+- `bubble`
 - `button`
 - `button-group`
 - `calendar`
@@ -57,14 +60,18 @@ Current local primitives in `app/components/ui/`:
 - `kanban`
 - `kbd`
 - `label`
+- `marker`
 - `media-player`
 - `menubar`
+- `message`
+- `message-scroller`
 - `native-select`
 - `navigation-menu`
 - `pagination`
 - `phone-input`
 - `popover`
 - `progress`
+- `questionnaire`
 - `radio-group`
 - `resizable`
 - `scroll-area`
@@ -74,7 +81,6 @@ Current local primitives in `app/components/ui/`:
 - `sidebar`
 - `skeleton`
 - `slider`
-- `sonner`
 - `sortable`
 - `spinner`
 - `stat`
@@ -83,6 +89,7 @@ Current local primitives in `app/components/ui/`:
 - `tabs`
 - `textarea`
 - `timeline`
+- `toast`
 - `toggle`
 - `toggle-group`
 - `tooltip`
@@ -100,21 +107,32 @@ Docs patterns or higher-level compositions that should be built on top of the pr
 - `data-table` via the local `app/components/data-table/*` helpers plus `Table`
 - `date-picker` via `Popover + Button + Calendar`
 - `typography` via semantic HTML plus the token-aware utility scale
-- AI Elements examples and composites under `app/components/ai-elements/`
+- AI chatbot example under `app/components/ai-elements/`
 
 Intentional exclusion:
 
-- do not add or use shadcn `toast`; notifications use `sonner` only
+- do not add `sonner`; notifications use the `toast` component (`toast.add({ title, type })` from `~/components/ui/toast`)
 
 ## How to add a new shadcn component
 
+The shadcn skill in `.claude/skills/shadcn` covers the CLI, composition, forms, chat, and styling rules. Follow it.
+
 Preferred order:
 
-1. use the existing shadcn registry configuration
-2. generate or install the component into `app/components/ui`
-3. verify imports and aliases
-4. make sure the component uses the existing token system
-5. run `pnpm lint`, `pnpm typecheck`, and `pnpm build`
+1. check `app/components/ui/` first; the list above may already cover the need
+2. install with `pnpm dlx shadcn@latest add <component>`; the CLI reads `components.json` and delivers the Base UI version
+3. if the CLI asks to overwrite an existing file, answer no unless you mean to update that component
+4. verify imports and aliases
+5. make sure the component uses the existing token system
+6. run `pnpm lint`, `pnpm typecheck`, and `pnpm build`
+
+Base UI composition (not Radix):
+
+- custom triggers use the `render` prop: `<DialogTrigger render={<Button variant="outline" />}>Open</DialogTrigger>`; never `asChild`
+- a `Button` rendered as a link needs `nativeButton={false}`: `<Button nativeButton={false} render={<Link to="/x" />}>Go</Button>`
+- menu item actions use `onClick`, not `onSelect` (`onSelect` is only for `Command` items and `Calendar`)
+- state styling uses Base UI data attributes (`data-open:`, `data-closed:`, `data-checked:`, `data-starting-style:`), not `data-[state=...]`
+- local changes to stock wrappers, keep them when updating: `dropdown-menu` and `tooltip` forward a `container` prop (the media player needs it), and the `toast` viewport uses `z-100` so toasts stay above open dialogs and drawers
 
 Rules:
 
@@ -125,9 +143,11 @@ Rules:
 - if generated imports are wrong for this repo, fix them immediately instead of working around them downstream
 - if a docs page is not a registry primitive, implement it as a composition example instead of inventing a fake `ui/*.tsx` primitive
 
-## AI Elements
+## Chat and AI interfaces
 
-This repo can host AI Elements registry components, but they are not part of the base `ui/` primitive layer.
+Chat threads use the shadcn chat primitives: `MessageScroller` for the scrolling thread, `Message` for rows, `Bubble` for message surfaces, `Attachment` for files, and `Marker` for status lines and date dividers. Use the `shimmer` utility for "Thinking…" text.
+
+AI Elements fill the gaps shadcn does not cover (prompt input, reasoning, sources, suggestions, model selector, speech input). The AI Elements registry still ships Radix-style code: after adding one, convert `asChild` to `render` and `onSelect` to `onClick` on menu items.
 
 Rules:
 
@@ -182,7 +202,8 @@ Recommended patterns:
 - `Sidebar` only for app shell navigation
 - `Switch` for binary settings
 - `Calendar` as the single shared calendar primitive for both direct calendars and date pickers
-- `Sonner` as the only notification system
+- `toast` as the only notification system
+- `Questionnaire` for guided multiple-choice questions
 
 ## Dashboard-specific rules
 

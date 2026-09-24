@@ -27,6 +27,8 @@ Assume the user is not technical.
 - Auth: Better Auth with `@better-auth/drizzle-adapter`.
 - Routing and SSR: TanStack Start and TanStack Router.
 - Machine API: oRPC contract/router, generated OpenAPI, and MCP execution tools.
+- UI: shadcn/ui on Base UI (`base-vega` style), Tailwind CSS v4, lucide icons.
+- AI agents: Cloudflare Think, only when the app needs an AI assistant.
 - Package manager: `pnpm` only.
 
 ## Cloudflare Only
@@ -111,6 +113,19 @@ Do not add hand-written REST handlers for feature capabilities in route files.
 
 The OpenAPI route and MCP tools are derived from the oRPC surface.
 
+## AI Agents
+
+When the user wants an AI assistant, chat agent, or agent harness inside their app, build it with Cloudflare Think (`@cloudflare/think`): https://developers.cloudflare.com/agents/harnesses/think/
+
+- Install with `pnpm add @cloudflare/think @cloudflare/ai-chat agents @cloudflare/shell workers-ai-provider` (`ai` and `zod` are already installed).
+- The agent is a class extending `Think`, stored as a Durable Object with SQLite storage. Override `getModel()` (Workers AI through the `AI` binding by default), `getSystemPrompt()`, and `getTools()`. Think handles streaming, message persistence, and the tool loop.
+- `wrangler.jsonc` needs an `ai` binding, a `durable_objects` binding for the class, and a `migrations` entry with `new_sqlite_classes`. Raise `compatibility_date` if the Think docs require it.
+- Durable Object classes must be exported from the Worker entry. Add a custom server entry (`app/server.ts`) that exports the agent class, sends agent requests to `routeAgentRequest` from `agents`, and passes everything else to the `@tanstack/react-start/server-entry` handler. Point `main` in `wrangler.jsonc` at it.
+- Check the Better Auth session before a request reaches the agent, and derive the agent instance name from the signed-in user or organization. Never trust a client-provided instance name.
+- In the browser, use `useAgent` from `agents/react` with `useAgentChat` from `@cloudflare/ai-chat/react`, and render with the chat components listed in UI Rules.
+- Agent tools that read or change app data call the same `app/db/` repositories as the oRPC handlers, with the same authorization checks.
+- One-off AI features without memory or tools (summarize a record, draft a text) use a plain AI SDK call (`generateText`, `streamText`) in a server function, not Think.
+
 ## Bootstrap Rules
 
 Follow `BOOTSTRAP.md` and `TEMPLATE_BOOTSTRAP_PROMPT.md` when turning this template into a new app.
@@ -134,6 +149,15 @@ Core bootstrap expectations:
 - ask whether to create a new GitHub remote only after bootstrap/deploy
 
 Do not push to the template repository from a bootstrapped app.
+
+## UI Rules
+
+Build every screen from the shadcn/ui components in `app/components/ui/`. Before writing UI, follow the shadcn skill (`.claude/skills/shadcn`) and `UI_SYSTEM.md`.
+
+- If a component is missing, add it with `pnpm dlx shadcn@latest add <component>` instead of hand-writing one. Do not add other UI kits.
+- Components are built on Base UI, not Radix: use the `render` prop instead of `asChild`, add `nativeButton={false}` when a `Button` renders a link, and use `onClick` (not `onSelect`) on menu items.
+- Notifications use `toast.add(...)` from `~/components/ui/toast`.
+- Chat and agent interfaces use `MessageScroller`, `Message`, `Bubble`, `Attachment`, and `Marker`, plus AI Elements for the prompt input.
 
 ## Design System
 
