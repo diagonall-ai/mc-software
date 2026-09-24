@@ -158,7 +158,7 @@
  * step lighter. Cream is the text color and yellow stays the CTA color.
  */
 .dark {
-	--background: oklch(0.22 0.055 280); /* blue shell */
+	--background: oklch(0.2 0.03 280); /* blue shell */
 	--foreground: #fefdf9;
 	--card: oklch(0.155 0.004 280); /* near-black panel */
 	--card-foreground: #fefdf9;
@@ -185,11 +185,11 @@
 	--chart-3: #ffd700;
 	--chart-4: #ff006e;
 	--chart-5: #e8ecff; /* tertiary-container */
-	--sidebar: oklch(0.22 0.055 280); /* same blue as the page */
+	--sidebar: oklch(0.2 0.03 280); /* same blue as the page */
 	--sidebar-foreground: #fefdf9;
 	--sidebar-primary: #fff95f;
 	--sidebar-primary-foreground: #000000;
-	--sidebar-accent: oklch(0.28 0.06 280);
+	--sidebar-accent: oklch(0.26 0.035 280);
 	--sidebar-accent-foreground: #fefdf9;
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: #7d89ff;
