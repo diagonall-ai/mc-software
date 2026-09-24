@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import {
-	Command,
+	CommandIcon,
 	Copy,
 	Home,
 	LogOut,
@@ -12,6 +12,7 @@ import {
 import { useEffect, useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
+	Command,
 	CommandDialog,
 	CommandEmpty,
 	CommandGroup,
@@ -88,7 +89,7 @@ export function DashboardSidebarCommandBar({
 							/>
 						}
 					>
-						<Command className="size-4" />
+						<CommandIcon className="size-4" />
 						<span className="sr-only">Rechercher une commande</span>
 					</TooltipTrigger>
 					<TooltipContent side="right" sideOffset={10}>
@@ -116,7 +117,7 @@ export function DashboardSidebarCommandBar({
 				variant="outline"
 			>
 				<span className="flex items-center gap-2">
-					<Command className="size-4" />
+					<CommandIcon className="size-4" />
 					<span className="text-sm">Rechercher</span>
 				</span>
 				<CommandShortcut className="ml-2.5 inline-flex">⌘K</CommandShortcut>
@@ -157,84 +158,89 @@ function DashboardCommandDialog({
 			open={open}
 			title="Commandes"
 		>
-			<CommandInput placeholder="Rechercher..." />
-			<CommandList>
-				<CommandEmpty>Aucun résultat.</CommandEmpty>
-				<CommandGroup heading="Navigation">
-					<CommandItem
-						onSelect={() => {
-							onOpenChange(false);
-							void navigate({ to: "/dashboard", viewTransition: true });
-						}}
-					>
-						<Home className="size-4" />
-						Tableau de bord
-					</CommandItem>
-					<CommandItem
-						onSelect={() => {
-							onOpenChange(false);
-							void navigate({
-								to: "/dashboard/assistant",
-								viewTransition: true,
-							});
-						}}
-					>
-						<Sparkles className="size-4" />
-						Assistant
-					</CommandItem>
-					<CommandItem
-						onSelect={() => {
-							onOpenChange(false);
-							void navigate({ to: "/dashboard/profile", viewTransition: true });
-						}}
-					>
-						<UserRound className="size-4" />
-						Profil
-					</CommandItem>
-				</CommandGroup>
-				<CommandSeparator />
-				<CommandGroup heading="Actions">
-					{theme === "dark" ? (
+			<Command>
+				<CommandInput placeholder="Rechercher..." />
+				<CommandList>
+					<CommandEmpty>Aucun résultat.</CommandEmpty>
+					<CommandGroup heading="Navigation">
 						<CommandItem
 							onSelect={() => {
 								onOpenChange(false);
-								onThemeChange("light");
+								void navigate({ to: "/dashboard", viewTransition: true });
 							}}
 						>
-							<Sun className="size-4" />
-							Mode clair
+							<Home className="size-4" />
+							Tableau de bord
 						</CommandItem>
-					) : (
 						<CommandItem
 							onSelect={() => {
 								onOpenChange(false);
-								onThemeChange("dark");
+								void navigate({
+									to: "/dashboard/assistant",
+									viewTransition: true,
+								});
 							}}
 						>
-							<Moon className="size-4" />
-							Mode sombre
+							<Sparkles className="size-4" />
+							Assistant
 						</CommandItem>
-					)}
-					<CommandItem
-						onSelect={() => {
-							onOpenChange(false);
-							void onCopyMcpUrl();
-						}}
-					>
-						<Copy className="size-4" />
-						Copier l’URL MCP
-					</CommandItem>
-					<CommandItem
-						onSelect={() => {
-							onOpenChange(false);
-							void onSignOut();
-						}}
-					>
-						<LogOut className="size-4" />
-						Déconnexion
-					</CommandItem>
-				</CommandGroup>
-			</CommandList>
+						<CommandItem
+							onSelect={() => {
+								onOpenChange(false);
+								void navigate({
+									to: "/dashboard/profile",
+									viewTransition: true,
+								});
+							}}
+						>
+							<UserRound className="size-4" />
+							Profil
+						</CommandItem>
+					</CommandGroup>
+					<CommandSeparator />
+					<CommandGroup heading="Actions">
+						{theme === "dark" ? (
+							<CommandItem
+								onSelect={() => {
+									onOpenChange(false);
+									onThemeChange("light");
+								}}
+							>
+								<Sun className="size-4" />
+								Mode clair
+							</CommandItem>
+						) : (
+							<CommandItem
+								onSelect={() => {
+									onOpenChange(false);
+									onThemeChange("dark");
+								}}
+							>
+								<Moon className="size-4" />
+								Mode sombre
+							</CommandItem>
+						)}
+						<CommandItem
+							onSelect={() => {
+								onOpenChange(false);
+								void onCopyMcpUrl();
+							}}
+						>
+							<Copy className="size-4" />
+							Copier l’URL MCP
+						</CommandItem>
+						<CommandItem
+							onSelect={() => {
+								onOpenChange(false);
+								void onSignOut();
+							}}
+						>
+							<LogOut className="size-4" />
+							Déconnexion
+						</CommandItem>
+					</CommandGroup>
+				</CommandList>
+			</Command>
 		</CommandDialog>
 	);
 }
