@@ -152,44 +152,44 @@
 }
 
 /*
- * Dark theme, derived from the brand's deep indigo (#0d0256, the brief's
- * inverse surface) as a low-chroma indigo-black. Cream becomes the text color,
- * yellow stays the CTA color, and the lighter accents replace the ones that
- * would disappear on dark surfaces.
+ * Dark theme: the shell (page background, sidebar, header) carries the brand
+ * blue, derived from the deep indigo #0d0256 (the brief's inverse surface).
+ * Cards are near-black neutral panels set into it; menus and dialogs sit one
+ * step lighter. Cream is the text color and yellow stays the CTA color.
  */
 .dark {
-	--background: oklch(0.17 0.035 282);
+	--background: oklch(0.22 0.055 280); /* blue shell */
 	--foreground: #fefdf9;
-	--card: oklch(0.205 0.04 282);
+	--card: oklch(0.155 0.004 280); /* near-black panel */
 	--card-foreground: #fefdf9;
-	--popover: oklch(0.235 0.042 282);
+	--popover: oklch(0.185 0.004 280);
 	--popover-foreground: #fefdf9;
 	--primary: #fff95f;
 	--primary-foreground: #000000;
 	--primary-edge: oklch(0.6 0.125 100); /* the key's shaded gold side */
-	--secondary: oklch(0.28 0.04 282);
+	--secondary: oklch(0.27 0.006 280);
 	--secondary-foreground: #fefdf9;
-	--muted: oklch(0.255 0.035 282);
+	--muted: oklch(0.24 0.005 280);
 	--muted-foreground: oklch(0.76 0.025 282);
-	--accent: oklch(0.3 0.045 282);
+	--accent: oklch(0.28 0.006 280);
 	--accent-foreground: #fefdf9;
 	--destructive: #ff006e;
 	--destructive-foreground: #ffffff;
 	--border: oklch(1 0 0 / 12%);
 	--input: oklch(1 0 0 / 18%);
 	--ring: #7d89ff;
-	--control: #fff95f; /* yellow reads well on dark surfaces */
-	--control-foreground: #000000;
+	--control: #7d89ff; /* same blue family as light mode, lighter for dark surfaces */
+	--control-foreground: #ffffff;
 	--chart-1: #7d89ff;
 	--chart-2: #00b67a;
 	--chart-3: #ffd700;
 	--chart-4: #ff006e;
 	--chart-5: #e8ecff; /* tertiary-container */
-	--sidebar: oklch(0.145 0.035 282);
+	--sidebar: oklch(0.22 0.055 280); /* same blue as the page */
 	--sidebar-foreground: #fefdf9;
 	--sidebar-primary: #fff95f;
 	--sidebar-primary-foreground: #000000;
-	--sidebar-accent: oklch(0.25 0.045 282);
+	--sidebar-accent: oklch(0.28 0.06 280);
 	--sidebar-accent-foreground: #fefdf9;
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: #7d89ff;

@@ -25,9 +25,9 @@ The global token system lives in `app/app.css`. New UI work should consume those
 The theme in `app/app.css` is Mobile Club's brand ("energetic minimalism"): a warm cream canvas, black text, and one electric-yellow accent.
 
 - `primary` (yellow `#fff95f`, black text) is for calls to action and active states only. Never use it for backgrounds, text, or decoration.
-- Selection controls (checkbox, radio, switch, slider, progress, questionnaire and field choice cards) use `--control` instead: brand indigo `#4027e7` in light mode, where yellow is unreadable as a small fill, and yellow in dark mode. `app/app.css` scopes this by `data-slot`, so the stock components stay untouched; add a new control's `data-slot` there if it has the same problem.
+- Selection controls (checkbox, radio, switch, slider, progress, questionnaire and field choice cards) use `--control` instead, a brand blue in both modes: indigo `#4027e7` in light mode (yellow is unreadable as a small fill on cream) and the lighter periwinkle `#7d89ff` in dark mode (indigo is too dark there). `app/app.css` scopes this by `data-slot`, so the stock components stay untouched; add a new control's `data-slot` there if it has the same problem.
 - Use the semantic tokens for everything else. The brand's other accents live in the chart colors: periwinkle (`chart-1`), teal (`chart-2`), gold (`chart-3`), pink (`chart-4`).
-- Dark mode is derived from the brand's deep indigo. Check new screens in both themes.
+- Dark mode: the shell (page, sidebar, header) is the brand blue and cards are near-black panels set into it. Check new screens in both themes.
 - Whyte Inktrap is the only UI font (`font-sans`, `font-heading`). Boing (`font-boing`) is for rare display moments such as a hero title, never for body text or controls.
 - Buttons are pills and badges are fully rounded; cards and dialogs use the larger radius.
 - Default and outline buttons have the brand's pressable look: a solid edge and a hard 3px offset shadow the button sinks into when pressed. The yellow button's edge is `--primary-edge` (black in light mode, a shaded gold in dark mode so it reads as the side of a yellow key); outline buttons use the text color. The same edge marks the active sidebar item and the user avatar.
