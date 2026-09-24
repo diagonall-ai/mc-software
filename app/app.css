@@ -187,7 +187,8 @@
 	--toast: #7d89ff; /* periwinkle face with an indigo side, like the yellow key and its gold side */
 	--toast-foreground: #000000; /* white on periwinkle is too faint for text */
 	--toast-edge: #4027e7;
-	--outline-edge: oklch(0.48 0.03 280); /* muted: a cream edge glares on dark surfaces */
+	/* muted: a cream edge glares on dark surfaces */
+	--outline-edge: oklch(0.48 0.03 280);
 	--chart-1: #7d89ff;
 	--chart-2: #00b67a;
 	--chart-3: #ffd700;
