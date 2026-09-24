@@ -58,13 +58,11 @@
   // =============================================================================
   // Cron Triggers (Scheduled Events)
   // =============================================================================
-  // Uncomment to enable scheduled tasks. Each cron pattern invokes the Worker's
-  // `scheduled` event handler (see app/worker/scheduled.ts).
-  //
-  // After uncommenting, deploy with `wrangler deploy`. Cron triggers only run
-  // in production. To test locally:
-  //   wrangler dev --test-scheduled
-  //   curl "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
+  // Uncomment to enable scheduled jobs: app/server.ts sends each trigger to
+  // app/worker/scheduled.ts. Times are UTC; the free plan allows 5 per account.
+  // In production they run after `pnpm run deploy`. To test one locally, with
+  // the dev server running:
+  //   curl "http://localhost:3934/cdn-cgi/handler/scheduled?cron=0+*+*+*+*"
   //
   // Cron syntax: minute hour day-of-month month day-of-week
   // Reference: https://developers.cloudflare.com/workers/configuration/cron-triggers/

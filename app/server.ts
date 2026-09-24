@@ -12,6 +12,7 @@ import {
 	handleOAuthOptions,
 	handleOAuthProtectedResource,
 } from "~/lib/mcp-oauth";
+import { runScheduledJobs } from "~/worker/scheduled";
 
 export { Assistant } from "~/agents/assistant";
 
@@ -66,4 +67,14 @@ function createServerEntry(entry: ServerEntry): ServerEntry {
 	};
 }
 
-export default createServerEntry({ fetch: startFetch });
+const serverEntry = createServerEntry({ fetch: startFetch });
+
+export default {
+	fetch: serverEntry.fetch,
+	// Cron Triggers (`triggers.crons` in wrangler.jsonc) land here.
+	scheduled: (
+		controller: ScheduledController,
+		_env: Env,
+		ctx: ExecutionContext,
+	) => ctx.waitUntil(runScheduledJobs(controller)),
+};

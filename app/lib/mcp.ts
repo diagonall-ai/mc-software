@@ -114,10 +114,7 @@ const callRouteInputSchema = {
 		.record(z.union([z.string(), z.number(), z.boolean()]))
 		.optional()
 		.describe("Values for the {placeholders} in the path."),
-	query: z
-		.record(z.unknown())
-		.optional()
-		.describe("Query string values."),
+	query: z.record(z.unknown()).optional().describe("Query string values."),
 	body: z.unknown().optional().describe("JSON body for POST, PUT and PATCH."),
 } satisfies Record<string, z.ZodTypeAny>;
 
@@ -548,7 +545,7 @@ export function registerMcpTools(server: McpServer): void {
 		{
 			title: "Call Route",
 			description:
-				"Call one API route as the signed-in user and get back its status and body. Use `search-routes` first to find the route and its input. Example: `{ \"method\": \"GET\", \"path\": \"/api/profile\" }`.",
+				'Call one API route as the signed-in user and get back its status and body. Use `search-routes` first to find the route and its input. Example: `{ "method": "GET", "path": "/api/profile" }`.',
 			inputSchema: callRouteInputSchema,
 		},
 		async (input, extra) => {
