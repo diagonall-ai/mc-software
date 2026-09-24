@@ -3,7 +3,11 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v3";
 import { handleApiRequest } from "~/lib/api";
 import { normalizeMcpCode } from "~/lib/mcp-code";
-import { getExecutor, type SandboxDictionary } from "~/lib/mcp-sandbox";
+import {
+	getExecutor,
+	isSandboxAvailable,
+	type SandboxDictionary,
+} from "~/lib/mcp-sandbox";
 import {
 	codeInputSchema,
 	executeInputSchema,
@@ -95,6 +99,26 @@ const searchRoutesInputSchema = {
 		.describe(
 			"Search text. You may provide a single query or a comma-separated list of queries. Search matches route methods, paths, summaries, descriptions, tags, parameters, and schema summaries.",
 		),
+} satisfies Record<string, z.ZodTypeAny>;
+
+const callRouteInputSchema = {
+	method: z
+		.enum(["GET", "POST", "PUT", "PATCH", "DELETE"])
+		.describe("The route method, as listed by search-routes."),
+	path: z
+		.string()
+		.describe(
+			"The route path as listed by search-routes, placeholders included, for example /api/profile or /api/examples/{exampleId}/workflow.",
+		),
+	params: z
+		.record(z.union([z.string(), z.number(), z.boolean()]))
+		.optional()
+		.describe("Values for the {placeholders} in the path."),
+	query: z
+		.record(z.unknown())
+		.optional()
+		.describe("Query string values."),
+	body: z.unknown().optional().describe("JSON body for POST, PUT and PATCH."),
 } satisfies Record<string, z.ZodTypeAny>;
 
 function requireSession(authInfo?: AuthInfo): McpSession {
@@ -480,7 +504,7 @@ export function registerMcpTools(server: McpServer): void {
 		{
 			title: "Search Routes",
 			description:
-				"Search the OpenAPI route catalog. Use this to find relevant API operations before executing requests.",
+				"Search the OpenAPI route catalog. Use this to find the route and its input before calling it with `call-route`.",
 			inputSchema: searchRoutesInputSchema,
 		},
 		async ({ query }) => {
@@ -518,6 +542,30 @@ export function registerMcpTools(server: McpServer): void {
 			};
 		},
 	);
+
+	registerTool(
+		"call-route",
+		{
+			title: "Call Route",
+			description:
+				"Call one API route as the signed-in user and get back its status and body. Use `search-routes` first to find the route and its input. Example: `{ \"method\": \"GET\", \"path\": \"/api/profile\" }`.",
+			inputSchema: callRouteInputSchema,
+		},
+		async (input, extra) => {
+			const envelope = await executeApiRoute(
+				input as ExecuteInput,
+				extra.authInfo,
+			);
+			return {
+				content: [{ type: "text", text: JSON.stringify(envelope, null, 2) }],
+			};
+		},
+	);
+
+	// Code execution needs a Dynamic Worker, which only Workers Paid provides.
+	if (!isSandboxAvailable()) {
+		return;
+	}
 
 	registerTool(
 		"execute",

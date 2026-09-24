@@ -371,11 +371,18 @@ export class McpSandboxExecutor {
 	}
 }
 
-const getLoader = (): WorkerLoader => env.LOADER;
+// Dynamic Workers need Workers Paid, so the LOADER binding is off by default
+// (see wrangler.jsonc). Without it, MCP offers `call-route` but not `execute`.
+const getLoader = () => (env as { LOADER?: WorkerLoader }).LOADER;
+
+export const isSandboxAvailable = () => getLoader() !== undefined;
 
 export function getExecutor(): McpSandboxExecutor {
-	return new McpSandboxExecutor({
-		loader: getLoader(),
-		globalOutbound: null,
-	});
+	const loader = getLoader();
+	if (!loader) {
+		throw new Error(
+			"The execute sandbox needs Workers Paid and the LOADER binding in wrangler.jsonc.",
+		);
+	}
+	return new McpSandboxExecutor({ loader, globalOutbound: null });
 }

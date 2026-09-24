@@ -1,4 +1,6 @@
 import { env } from "cloudflare:workers";
+import { Buffer } from "node:buffer";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { apiKey } from "@better-auth/api-key";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
@@ -7,17 +9,18 @@ import { mcp } from "better-auth/plugins";
 import { db } from "~/db/client";
 import * as schema from "~/db/schema";
 
+// Without SITE_URL (a fresh deploy), Better Auth takes the base URL from each
+// request, so the app trusts its own address, whatever workers.dev name it got.
 function getSiteUrl() {
-	const configuredUrl = env.SITE_URL ?? import.meta.env.VITE_SITE_URL;
-	if (typeof configuredUrl === "string" && configuredUrl.trim()) {
-		return configuredUrl.trim().replace(/\/+$/, "");
-	}
-
-	return "http://localhost:3934";
+	const configuredUrl = env.SITE_URL?.trim().replace(/\/+$/, "");
+	return configuredUrl || undefined;
 }
 
-function getTrustedOrigins(siteUrl: string) {
-	const origins = [siteUrl, "http://localhost:*", "http://127.0.0.1:*"];
+function getTrustedOrigins(siteUrl: string | undefined) {
+	const origins = ["http://localhost:*", "http://127.0.0.1:*"];
+	if (siteUrl) {
+		origins.push(siteUrl);
+	}
 	const configuredOrigins = env.TRUSTED_ORIGINS?.split(",") ?? [];
 	for (const origin of configuredOrigins) {
 		const trimmedOrigin = origin.trim();
@@ -28,6 +31,12 @@ function getTrustedOrigins(siteUrl: string) {
 
 	return Array.from(new Set(origins));
 }
+
+// Better Auth's own hash format and parameters on native scrypt: its pure-JS
+// default, which Workers get, can overrun the free plan's CPU budget.
+const SCRYPT = { N: 16384, r: 16, p: 1, maxmem: 128 * 16384 * 16 * 2 };
+const deriveKey = (password: string, salt: string) =>
+	scryptSync(password.normalize("NFKC"), salt, 64, SCRYPT);
 
 const siteUrl = getSiteUrl();
 
@@ -41,6 +50,20 @@ export const authServer = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 		requireEmailVerification: false,
+		password: {
+			hash: async (password) => {
+				const salt = randomBytes(16).toString("hex");
+				return `${salt}:${deriveKey(password, salt).toString("hex")}`;
+			},
+			verify: async ({ hash, password }) => {
+				const [salt, key] = hash.split(":");
+				const expected = Buffer.from(key ?? "", "hex");
+				if (!salt || expected.length !== 64) {
+					return false;
+				}
+				return timingSafeEqual(deriveKey(password, salt), expected);
+			},
+		},
 	},
 	hooks: {
 		before: createAuthMiddleware(async (ctx) => {
@@ -48,15 +71,12 @@ export const authServer = betterAuth({
 				return;
 			}
 
-			const superAdminPassword = env.SUPER_ADMIN_SIGNUP_PASSWORD;
-			if (!superAdminPassword) {
-				return;
-			}
-
-			const providedPassword = ctx.headers?.get("x-super-admin-password");
-			if (providedPassword !== superAdminPassword) {
+			// The invitation code is the only gate: without one, sign-up stays closed.
+			const invitationCode = env.SUPER_ADMIN_SIGNUP_PASSWORD?.trim();
+			const providedCode = ctx.headers?.get("x-super-admin-password");
+			if (!invitationCode || providedCode !== invitationCode) {
 				throw new APIError("FORBIDDEN", {
-					message: "Invalid super admin password",
+					message: "Code d'invitation incorrect.",
 				});
 			}
 		}),

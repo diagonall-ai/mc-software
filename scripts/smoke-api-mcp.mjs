@@ -145,6 +145,36 @@ async function exerciseTools(client, label) {
 		!search.isError && /profile/i.test(text(search)),
 		short(text(search)),
 	);
+	const get = await client.callTool({
+		name: "call-route",
+		arguments: { method: "GET", path: "/api/profile" },
+	});
+	check(
+		`MCP call-route calls the API (${label})`,
+		!get.isError && /email/i.test(text(get)),
+		short(text(get)),
+	);
+	const postRoute = await client.callTool({
+		name: "call-route",
+		arguments: {
+			method: "POST",
+			path: "/api/examples/{exampleId}/workflow",
+			params: { exampleId: "sample" },
+			query: { q: "hi" },
+			body: { message: "hello from MCP" },
+		},
+	});
+	check(
+		`MCP call-route can POST with params, query, body (${label})`,
+		!postRoute.isError && /"status": 200/.test(text(postRoute)),
+		short(text(postRoute)),
+	);
+
+	// `execute` only exists on Workers Paid, with the LOADER binding.
+	const { tools } = await client.listTools();
+	if (!tools.some((tool) => tool.name === "execute")) {
+		return;
+	}
 	const exec = await client.callTool({
 		name: "execute",
 		arguments: { code: "await api.profile.get()" },

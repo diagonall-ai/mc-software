@@ -210,9 +210,7 @@ function SignUpForm({ onAuthSuccess }: { onAuthSuccess?: () => void }) {
 				/>
 			</div>
 			<div className="space-y-2">
-				<Label htmlFor="signup-super-admin-password">
-					Mot de passe super admin
-				</Label>
+				<Label htmlFor="signup-super-admin-password">Code d'invitation</Label>
 				<Input
 					id="signup-super-admin-password"
 					name="superAdminPassword"
