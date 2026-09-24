@@ -79,7 +79,7 @@ export function DashboardSidebarCommandBar({
 					<TooltipTrigger
 						render={
 							<Button
-								className="m-0 h-14 w-full rounded-none border-b border-border/70"
+								className="size-10"
 								onClick={() => setOpen(true)}
 								size="icon"
 								type="button"

@@ -145,7 +145,7 @@ Base UI composition (not Radix):
 - a `Button` rendered as a link needs `nativeButton={false}`: `<Button nativeButton={false} render={<Link to="/x" />}>Go</Button>`
 - menu item actions use `onClick`, not `onSelect` (`onSelect` is only for `Command` items and `Calendar`)
 - state styling uses Base UI data attributes (`data-open:`, `data-closed:`, `data-checked:`, `data-starting-style:`), not `data-[state=...]`
-- local changes to stock wrappers, keep them when updating: `button` is pill-shaped, pressable (default and outline), with a foreground-colored `link` variant (brand), `dropdown-menu` and `tooltip` forward a `container` prop (the media player needs it), and the `toast` viewport uses `z-100` so toasts stay above open dialogs and drawers
+- local changes to stock wrappers, keep them when updating: `button` is pill-shaped, pressable (default and outline), with a foreground-colored `link` variant (brand), `dropdown-menu` and `tooltip` forward a `container` prop (the media player needs it), menu options never wrap (`dropdown-menu` grows to fit its options, at least as wide as its trigger; `context-menu` and `menubar` follow), and the `toast` viewport uses `z-100` so toasts stay above open dialogs and drawers
 
 Rules:
 

@@ -227,7 +227,7 @@ function DashboardSidebarLink({
 	return (
 		<SidebarMenuItem>
 			<SidebarMenuButton
-				className="h-10 rounded-full px-3 text-[0.9375rem] font-semibold data-active:border data-active:border-(--primary-edge) data-active:bg-sidebar-primary data-active:font-semibold data-active:text-sidebar-primary-foreground data-active:shadow-[2px_2px_0_var(--primary-edge)]"
+				className="h-10 rounded-full px-3 text-[0.9375rem] font-semibold group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! data-active:border data-active:border-(--primary-edge) data-active:bg-sidebar-primary data-active:font-semibold data-active:text-sidebar-primary-foreground data-active:shadow-[2px_2px_0_var(--primary-edge)]"
 				isActive={isActive}
 				render={<Link to={link.to} viewTransition />}
 				tooltip={link.label}
@@ -361,7 +361,7 @@ function SessionFooter({
 					</DropdownMenuTrigger>
 					<DropdownMenuContent
 						align="start"
-						className="w-56"
+						className="min-w-56"
 						side="right"
 						sideOffset={10}
 					>
@@ -388,7 +388,7 @@ function CompteMenuItems({
 }) {
 	return (
 		<>
-			<DropdownMenuItem render={<a href="/api/v1/docs" />}>
+			<DropdownMenuItem render={<a href="/api/docs" />}>
 				<BookOpen className="size-4" />
 				<span>Référence API</span>
 			</DropdownMenuItem>
@@ -431,7 +431,7 @@ function SessionFooterSkeleton({ className }: { className?: string }) {
 
 function CollapsedSessionFooterSkeleton() {
 	return (
-		<div className="flex h-14 w-full items-center justify-center rounded-none border-0">
+		<div className="flex size-10 items-center justify-center">
 			<Skeleton className="size-8 rounded-full" />
 		</div>
 	);
@@ -465,7 +465,7 @@ function DashboardSidebarFooter({
 	if (isCollapsed && !isMobile) {
 		if (user === undefined) {
 			return (
-				<SidebarFooter className="p-0">
+				<SidebarFooter className="items-center gap-1">
 					<DashboardSidebarCommandBar
 						onCopyMcpUrl={onCopyMcpUrl}
 						onSignOut={onSignOut}
@@ -473,7 +473,7 @@ function DashboardSidebarFooter({
 						theme={theme}
 					/>
 					<ThemeToggle
-						className="m-0 h-14 w-full rounded-none border-b border-border/70"
+						className="size-10"
 						onThemeChange={onThemeChange}
 						size="icon"
 						theme={theme}
@@ -485,7 +485,7 @@ function DashboardSidebarFooter({
 		}
 
 		return (
-			<SidebarFooter className="p-0">
+			<SidebarFooter className="items-center gap-1">
 				<ApiKeyDrawer
 					onOpenChange={setApiKeyDrawerOpen}
 					open={apiKeyDrawerOpen}
@@ -498,7 +498,7 @@ function DashboardSidebarFooter({
 					theme={theme}
 				/>
 				<ThemeToggle
-					className="m-0 h-14 w-full rounded-none border-b border-border/70"
+					className="size-10"
 					onThemeChange={onThemeChange}
 					size="icon"
 					theme={theme}
@@ -510,16 +510,12 @@ function DashboardSidebarFooter({
 							render={
 								<DropdownMenuTrigger
 									render={
-										<Button
-											className="m-0 h-14 w-full rounded-none border-0"
-											size="icon"
-											variant="ghost"
-										/>
+										<Button className="size-10" size="icon" variant="ghost" />
 									}
 								/>
 							}
 						>
-							<Avatar className="size-8 border border-border/70" size="lg">
+							<Avatar className="border border-border/70">
 								<AvatarImage alt={userLabel} src={user?.image ?? undefined} />
 								<AvatarFallback>{getInitials(userLabel)}</AvatarFallback>
 							</Avatar>
