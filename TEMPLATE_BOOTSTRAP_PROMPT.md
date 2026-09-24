@@ -237,7 +237,7 @@ Once the user has approved the application structure, build it on top of the tem
 While implementing the requested application:
 
 - build the smallest useful version first, deploy it, share the link, and ask for feedback before adding more
-- store API keys for external services in `.dev.vars` and as Worker secrets with `pnpm wrangler secret put`; explain where to find each key, and never put keys in code
+- connect external services through the shells in `app/integrations/`, following `INTEGRATIONS.md`; store their keys in `.dev.vars` and as Worker secrets with `pnpm wrangler secret put`, explain where to find each key, and never put keys in code
 - keep the existing repo structure unless there is a strong reason to change it
 - use `AI_AGENT_GUIDE.md` for common page, capability, table, auth, and verification recipes
 - reuse existing components and patterns before creating new ones

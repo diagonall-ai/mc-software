@@ -29,6 +29,7 @@ Assume the user is not technical.
 - Machine API: oRPC contract/router, generated OpenAPI, and MCP execution tools.
 - UI: shadcn/ui on Base UI (`base-vega` style), Tailwind CSS v4, lucide icons.
 - AI: Cloudflare Workers AI through the `AI` binding; Cloudflare Think for AI agents.
+- Third-party APIs: one Effect v4 shell class per service in `app/integrations/`.
 - Package manager: `pnpm` only.
 
 ## Cloudflare Only
@@ -129,6 +130,16 @@ When the user wants an AI assistant, chat agent, or agent harness inside their a
 - Check the Better Auth session before a request reaches the agent, and derive the agent instance name from the signed-in user's id. Never trust a client-provided instance name.
 - In the browser, use `useAgent` from `agents/react` with `useAgentChat` from `@cloudflare/ai-chat/react`, and render with the chat components listed in UI Rules.
 - Agent tools that read or change app data call the same `app/db/` repositories as the oRPC handlers, with the same authorization checks.
+
+## Third-Party APIs
+
+Connect external services through the shells in `app/integrations/`, following `INTEGRATIONS.md`.
+
+- One class per service, with a static `init({ ...credentials })` and one method per endpoint. Add endpoints by copying the shell's example method.
+- Every call goes through `request` in `app/integrations/http.ts` (timeouts, retries, typed errors, Schema validation). Do not call `fetch` directly for a third-party API.
+- Run shells only on the server (oRPC handlers, server functions, scheduled jobs), through `runIntegration`.
+- Credentials are Worker secrets: `.dev.vars` locally, `pnpm wrangler secret put` in production. Never in code or in the browser.
+- Stay read-only. Ask the user before adding a method that writes, sends messages, or spends credits.
 
 ## Bootstrap Rules
 

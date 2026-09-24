@@ -20,6 +20,7 @@ If you are an AI agent, start with [AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md). It 
 | Auth | Better Auth + `@better-auth/drizzle-adapter` |
 | Styling | Tailwind CSS v4, shadcn/ui components |
 | Edge Runtime | Cloudflare Workers |
+| Integrations | Effect v4 shells for third-party APIs (`INTEGRATIONS.md`) |
 | Tooling | pnpm, Biome, TypeScript |
 
 ## Prerequisites
@@ -73,6 +74,7 @@ Do not store secrets in `wrangler.jsonc`.
 .
 ├── app/
 │   ├── db/                    # Drizzle schema, client, and repositories
+│   ├── integrations/          # Third-party API shells (see INTEGRATIONS.md)
 │   ├── lib/
 │   │   ├── auth-server.ts      # Better Auth backed by D1/Drizzle
 │   │   ├── orpc/               # Canonical contract and implementation

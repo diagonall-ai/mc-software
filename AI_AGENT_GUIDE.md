@@ -15,6 +15,7 @@ Read these files before changing code:
 5. `DATA_MODEL.md` before adding tables, repositories, or migrations.
 6. `ROUTING_AND_DATA_FLOW.md` before wiring loaders or mutations.
 7. `UI_SYSTEM.md` before changing UI primitives or dashboard surfaces.
+8. `INTEGRATIONS.md` before connecting a third-party API.
 
 If those docs conflict, prefer `CLAUDE.md` for boundaries and `BOOTSTRAP.md` for setup sequence.
 

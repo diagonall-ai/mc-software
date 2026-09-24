@@ -1,0 +1,178 @@
+/**
+ * Google Sheets: read spreadsheet cells with a service account.
+ * Used by: Retention Hub.
+ *
+ * Docs: https://developers.google.com/workspace/sheets/api/reference/rest
+ * Discovery document (Google publishes no OpenAPI file):
+ * https://sheets.googleapis.com/$discovery/rest?version=v4
+ *
+ * Getting access (the recipe is in INTEGRATIONS.md):
+ * - Who: the Google Workspace admin creates the service account; whoever owns
+ *   a Sheet shares it.
+ * - Where: Google Cloud console > a project > enable "Google Sheets API" >
+ *   IAM and admin > Service accounts > create one > Keys > Add key > JSON.
+ *   Then share each Sheet with the service account's email as Viewer
+ *   (untick "Notify people").
+ * - Pitfall: organizations created since May 2024 block key creation by
+ *   default ("Key creation is not allowed on this service account"). An
+ *   Organization Policy Administrator must exempt the project from
+ *   iam.disableServiceAccountKeyCreation and
+ *   iam.managed.disableServiceAccountKeyCreation. If that is refused, upload
+ *   the Sheet as CSV instead.
+ * - Secret: GOOGLE_SERVICE_ACCOUNT_KEY, the whole downloaded JSON file.
+ *
+ * API facts:
+ * - The shell signs a JWT with the key (WebCrypto), trades it for a one-hour
+ *   token at https://oauth2.googleapis.com/token, and sends it as
+ *   `Authorization: Bearer`.
+ * - 60 reads per minute per service account: store what you read in D1
+ *   instead of reading the Sheet on every page view.
+ * - Values come back as displayed text, in the Sheet's locale. Empty trailing
+ *   cells and rows are dropped, so rows can have different lengths.
+ * - The spreadsheet id is in its URL: docs.google.com/spreadsheets/d/<id>/edit.
+ *   An uploaded .xlsx file must first be saved as a Google Sheet.
+ */
+import { Effect, Encoding, Schema } from "effect";
+import {
+	type CallOptions,
+	cachedToken,
+	IntegrationError,
+	request,
+} from "./http";
+
+const SERVICE = "Google Sheets";
+const BASE_URL = "https://sheets.googleapis.com/v4";
+const TOKEN_URL = "https://oauth2.googleapis.com/token";
+const SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
+
+const ServiceAccountKey = Schema.fromJsonString(
+	Schema.Struct({ client_email: Schema.String, private_key: Schema.String }),
+);
+
+export class GoogleSheets {
+	/** `GoogleSheets.init({ serviceAccountKey: env.GOOGLE_SERVICE_ACCOUNT_KEY })` */
+	static init(credentials: { serviceAccountKey: string }): GoogleSheets {
+		return new GoogleSheets(credentials.serviceAccountKey);
+	}
+
+	readonly #serviceAccountKey: string;
+
+	private constructor(serviceAccountKey: string) {
+		this.#serviceAccountKey = serviceAccountKey;
+	}
+
+	/**
+	 * EXAMPLE ENDPOINT: copy it for each endpoint the app needs.
+	 *
+	 * GET /spreadsheets/{id}/values/{range}: the cells of a range, row by row.
+	 * Docs: https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets.values/get
+	 * Range in A1 notation: "Clients!A1:F", "'Suivi churn'!A:C" (quotes when
+	 * the tab name has spaces), or "Clients" for a whole tab.
+	 */
+	readRange(spreadsheetId: string, range: string) {
+		return this.call(
+			`/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`,
+			Schema.Struct({
+				values: Schema.optional(Schema.Array(Schema.Array(Schema.String))),
+			}),
+		).pipe(Effect.map((body) => body.values ?? []));
+	}
+
+	private call<A>(
+		path: string,
+		schema: Schema.Decoder<A>,
+		options: CallOptions = {},
+	) {
+		return this.accessToken().pipe(
+			Effect.flatMap((token) =>
+				request({
+					...options,
+					headers: { Authorization: `Bearer ${token}` },
+					schema,
+					service: SERVICE,
+					url: `${BASE_URL}${path}`,
+				}),
+			),
+		);
+	}
+
+	private accessToken() {
+		const keyFile = this.#serviceAccountKey;
+		return Effect.gen(function* () {
+			const key = yield* Schema.decodeUnknownEffect(ServiceAccountKey)(
+				keyFile,
+			).pipe(
+				Effect.mapError(() =>
+					invalidKey("copiez tout le fichier JSON téléchargé dans le secret."),
+				),
+			);
+			return yield* cachedToken(
+				`google:${key.client_email}`,
+				Effect.gen(function* () {
+					const assertion = yield* Effect.tryPromise({
+						try: () => signJwt(key.client_email, key.private_key),
+						catch: () => invalidKey("la clé privée est illisible."),
+					});
+					const token = yield* request({
+						form: {
+							assertion,
+							grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+						},
+						method: "POST",
+						schema: Schema.Struct({
+							access_token: Schema.String,
+							expires_in: Schema.Number,
+						}),
+						service: SERVICE,
+						url: TOKEN_URL,
+					});
+					return {
+						expiresInSeconds: token.expires_in,
+						value: token.access_token,
+					};
+				}),
+			);
+		});
+	}
+}
+
+const invalidKey = (hint: string) =>
+	new IntegrationError({
+		message: `La clé du compte de service Google n'est pas valide : ${hint}`,
+		reason: "unauthorized",
+		service: SERVICE,
+	});
+
+/** A one-hour RS256 JWT asking for read-only access to Sheets. */
+export const signJwt = async (clientEmail: string, privateKeyPem: string) => {
+	const now = Math.floor(Date.now() / 1000);
+	const unsigned = [
+		{ alg: "RS256", typ: "JWT" },
+		{
+			aud: TOKEN_URL,
+			exp: now + 3600,
+			iat: now,
+			iss: clientEmail,
+			scope: SCOPE,
+		},
+	]
+		.map((part) => Encoding.encodeBase64Url(JSON.stringify(part)))
+		.join(".");
+	const der = Uint8Array.from(
+		atob(privateKeyPem.replace(/-----[A-Z ]+-----|\s/g, "")),
+		(char) => char.charCodeAt(0),
+	);
+	const signingKey = await crypto.subtle.importKey(
+		"pkcs8",
+		der,
+		{ hash: "SHA-256", name: "RSASSA-PKCS1-v1_5" },
+		false,
+		["sign"],
+	);
+	const signature = await crypto.subtle.sign(
+		"RSASSA-PKCS1-v1_5",
+		signingKey,
+		new TextEncoder().encode(unsigned),
+	);
+	return `${unsigned}.${Encoding.encodeBase64Url(new Uint8Array(signature))}`;
+};
