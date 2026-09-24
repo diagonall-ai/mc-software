@@ -37,6 +37,7 @@
             "noDangerouslySetInnerHtml": "off"
           },
           "suspicious": {
+            "noDocumentCookie": "off",
             "noDoubleEquals": "off"
           }
         }

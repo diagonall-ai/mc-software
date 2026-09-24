@@ -40,7 +40,8 @@ export function DashboardSidebarCommandBar({
 	onThemeChange,
 	theme,
 }: DashboardSidebarCommandBarProps) {
-	const { isCollapsed, isMobile } = useSidebar();
+	const { isMobile, state } = useSidebar();
+	const isCollapsed = state === "collapsed";
 	const [open, setOpen] = useState(false);
 
 	useEffect(() => {

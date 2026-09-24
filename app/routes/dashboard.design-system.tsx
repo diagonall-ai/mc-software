@@ -2171,7 +2171,7 @@ function SidebarShowcase() {
 		>
 			<div className="overflow-hidden rounded-2xl border border-border/70">
 				<SidebarProvider className="h-[360px] min-h-0" defaultOpen>
-					<Sidebar className="top-0 h-[360px] min-h-[360px]">
+					<Sidebar className="h-[360px]" collapsible="none">
 						<SidebarHeader>
 							<div className="rounded-2xl border border-sidebar-border bg-sidebar-accent px-3 py-3 text-sidebar-accent-foreground">
 								<p className="text-sm font-semibold tracking-tight">

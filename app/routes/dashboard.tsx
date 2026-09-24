@@ -41,6 +41,7 @@ import {
 	Sidebar,
 	SidebarContent,
 	SidebarFooter,
+	SidebarGroup,
 	SidebarHeader,
 	SidebarInset,
 	SidebarMenu,
@@ -141,21 +142,31 @@ function DashboardShell() {
 
 	return (
 		<DashboardShellPortalProvider>
-			<SidebarProvider className="fixed inset-0 overflow-hidden">
-				<Sidebar>
+			<SidebarProvider
+				className="fixed inset-0 overflow-hidden"
+				style={
+					{
+						"--sidebar-width": "14.25rem",
+						"--sidebar-width-icon": "3.75rem",
+					} as React.CSSProperties
+				}
+			>
+				<Sidebar collapsible="icon">
 					<SidebarHeader className="h-14 p-0">
 						<DashboardSidebarUser user={user} />
 					</SidebarHeader>
 					<SidebarContent>
-						<SidebarMenu>
-							{dashboardLinks.map((link) => (
-								<DashboardSidebarLink
-									isActive={isActiveLink(pathname, link.to)}
-									key={link.to}
-									link={link}
-								/>
-							))}
-						</SidebarMenu>
+						<SidebarGroup>
+							<SidebarMenu>
+								{dashboardLinks.map((link) => (
+									<DashboardSidebarLink
+										isActive={isActiveLink(pathname, link.to)}
+										key={link.to}
+										link={link}
+									/>
+								))}
+							</SidebarMenu>
+						</SidebarGroup>
 					</SidebarContent>
 					<DashboardSidebarFooter
 						onCopyMcpUrl={handleCopyMcpUrl}
@@ -213,29 +224,16 @@ function DashboardSidebarLink({
 	isActive: boolean;
 	link: (typeof dashboardLinks)[number];
 }) {
-	const { isCollapsed, isMobile } = useSidebar();
-	const button = (
-		<SidebarMenuButton
-			isActive={isActive}
-			render={<Link to={link.to} viewTransition />}
-		>
-			<link.icon className="size-4 shrink-0" />
-			<SidebarLabel>{link.label}</SidebarLabel>
-		</SidebarMenuButton>
-	);
-
 	return (
 		<SidebarMenuItem>
-			{isCollapsed && !isMobile ? (
-				<Tooltip>
-					<TooltipTrigger render={button} />
-					<TooltipContent side="right" sideOffset={10}>
-						{link.label}
-					</TooltipContent>
-				</Tooltip>
-			) : (
-				button
-			)}
+			<SidebarMenuButton
+				isActive={isActive}
+				render={<Link to={link.to} viewTransition />}
+				tooltip={link.label}
+			>
+				<link.icon className="size-4 shrink-0" />
+				<SidebarLabel>{link.label}</SidebarLabel>
+			</SidebarMenuButton>
 		</SidebarMenuItem>
 	);
 }
@@ -252,7 +250,8 @@ function DashboardSidebarUser({
 		| null
 		| undefined;
 }) {
-	const { isCollapsed, isMobile } = useSidebar();
+	const { isMobile, state } = useSidebar();
+	const isCollapsed = state === "collapsed";
 	const compact = isCollapsed && !isMobile;
 	const avatarSize = compact ? "size-10" : "size-6.5";
 
@@ -456,7 +455,8 @@ function DashboardSidebarFooter({
 		| undefined;
 	onSignOut: () => Promise<void>;
 }) {
-	const { isCollapsed, isMobile } = useSidebar();
+	const { isMobile, state } = useSidebar();
+	const isCollapsed = state === "collapsed";
 	const [apiKeyDrawerOpen, setApiKeyDrawerOpen] = useState(false);
 	const userLabel = user?.name ?? user?.email ?? "Connecté";
 
@@ -575,7 +575,8 @@ function ThemeToggle({
 	onThemeChange: (theme: "light" | "dark") => void;
 	theme: "light" | "dark";
 }) {
-	const { isCollapsed, isMobile } = useSidebar();
+	const { isMobile, state } = useSidebar();
+	const isCollapsed = state === "collapsed";
 
 	function toggleTheme() {
 		onThemeChange(theme === "dark" ? "light" : "dark");
@@ -657,7 +658,8 @@ function ThemeToggle({
 }
 
 function SidebarLabel({ children }: { children: React.ReactNode }) {
-	const { isCollapsed, isMobile } = useSidebar();
+	const { isMobile, state } = useSidebar();
+	const isCollapsed = state === "collapsed";
 
 	return isCollapsed && !isMobile ? null : (
 		<span className="whitespace-nowrap font-sans text-[0.8125rem] leading-tight">
