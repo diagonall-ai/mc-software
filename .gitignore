@@ -7,3 +7,6 @@ dist
 .env.local
 .dev.vars
 app/routeTree.gen.ts
+
+# Local browser-automation logs
+.playwright-cli/
