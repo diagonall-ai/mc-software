@@ -32,8 +32,8 @@ const openApiGenerateOptions = {
 const openApiReferencePlugin = new OpenAPIReferencePlugin({
 	schemaConverters,
 	docsProvider: "scalar",
-	specPath: "/api/v1/openapi.json",
-	docsPath: "/api/v1/docs",
+	specPath: "/api/openapi.json",
+	docsPath: "/api/docs",
 	docsTitle: `${PROJECT_NAME} API Reference`,
 	specGenerateOptions: openApiGenerateOptions,
 	docsConfig: {

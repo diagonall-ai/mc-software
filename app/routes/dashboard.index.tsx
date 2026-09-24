@@ -83,7 +83,7 @@ function DashboardOverviewPage() {
 					<Button
 						className="w-full justify-between"
 						nativeButton={false}
-						render={<a href="/api/v1/docs" />}
+						render={<a href="/api/docs" />}
 						variant="outline"
 					>
 						API reference

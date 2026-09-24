@@ -248,7 +248,7 @@ async function checkRuntime(origin) {
 		"SITE_URL responds",
 	);
 	await checkFetch(
-		`${origin}/api/v1/openapi.json`,
+		`${origin}/api/openapi.json`,
 		async (response) => {
 			if (!response.ok) {
 				return false;
@@ -259,7 +259,7 @@ async function checkRuntime(origin) {
 		"OpenAPI JSON responds with an OpenAPI document",
 	);
 	await checkFetch(
-		`${origin}/api/v1/docs`,
+		`${origin}/api/docs`,
 		(response) => response.ok,
 		"API docs route responds",
 	);

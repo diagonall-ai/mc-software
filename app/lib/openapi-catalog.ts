@@ -34,7 +34,7 @@ interface SearchDocument extends CatalogEntry {
 const PUBLIC_ROUTE_CATALOG: CatalogEntry[] = [
 	{
 		method: "GET",
-		path: "/api/v1/openapi.json",
+		path: "/api/openapi.json",
 		summary: "OpenAPI schema",
 		description:
 			"Returns the machine-readable OpenAPI 3.1 schema for the public API surface.",
@@ -48,7 +48,7 @@ const PUBLIC_ROUTE_CATALOG: CatalogEntry[] = [
 	},
 	{
 		method: "GET",
-		path: "/api/v1/docs",
+		path: "/api/docs",
 		summary: "API reference",
 		description:
 			"Returns the interactive API reference UI for the public API surface.",

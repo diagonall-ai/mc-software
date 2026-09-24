@@ -59,7 +59,7 @@ export const apiContract = {
 		workflow: oc
 			.route({
 				method: "POST",
-				path: "/api/v1/examples/{exampleId}/workflow",
+				path: "/api/examples/{exampleId}/workflow",
 				inputStructure: "detailed",
 				summary: "Example workflow route",
 				description:

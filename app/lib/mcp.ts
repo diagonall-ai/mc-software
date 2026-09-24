@@ -118,9 +118,9 @@ function filterHeaders(responseHeaders: Headers): Record<string, string> {
 
 function normalizeApiRoutePath(path?: string): string {
 	const value = path ?? "/";
-	const normalizedPath = value.startsWith("/api/v1")
+	const normalizedPath = /^\/api(\/|$)/.test(value)
 		? value
-		: `/api/v1${value.startsWith("/") ? "" : "/"}${value}`;
+		: `/api${value.startsWith("/") ? "" : "/"}${value}`;
 
 	return normalizedPath;
 }
@@ -328,9 +328,9 @@ function buildApiRouteTree(): ApiRouteNode {
 	};
 
 	for (const entry of EXECUTABLE_ROUTE_CATALOG) {
-		if (!entry.path.startsWith("/api/v1/")) continue;
+		if (!entry.path.startsWith("/api/")) continue;
 		const segments = entry.path
-			.replace(/^\/api\/v1\/?/, "")
+			.replace(/^\/api\/?/, "")
 			.split("/")
 			.filter(Boolean);
 
@@ -382,7 +382,7 @@ function __createApiProxy(node, segments) {
 						throw new Error("Route input must be an object");
 					}
 
-					const path = segments.length === 0 ? "/api/v1" : \`/api/v1/\${segments.join("/")}\`;
+					const path = segments.length === 0 ? "/api" : \`/api/\${segments.join("/")}\`;
 					return openapi.callRoute({
 						method: maybeMethod,
 						path,
@@ -524,7 +524,7 @@ export function registerMcpTools(server: McpServer): void {
 		{
 			title: "Execute Code",
 			description:
-				'Execute JavaScript inside a Cloudflare dynamic worker sandbox. The sandbox exposes an `api.*` proxy derived from executable OpenAPI routes and a `dictionary` object copied from this tool input. Use `search-routes` first to discover available routes and their input/output types. Put string-heavy or nested payloads in `dictionary`, then reference them from code, for example `code: "await api.examples.exampleId.workflow.post({ params: { exampleId: dictionary.exampleId }, body: dictionary.body })"` with `dictionary: { "exampleId": "sample", "body": { "message": "hello", "priority": "high" } }`. Route method calls accept an object with optional `params`, `query`, `headers`, and `body`. Parameterized path segments become plain parameter-name properties in the proxy. Code is normalized before execution, so fenced code blocks, expressions, top-level await, function declarations, and export defaults are accepted.',
+				'Execute JavaScript inside a Cloudflare dynamic worker sandbox. The sandbox exposes an `api.*` proxy derived from executable OpenAPI routes and a `dictionary` object copied from this tool input. Use `search-routes` first to discover available routes and their input/output types. Put string-heavy or nested payloads in `dictionary`, then reference them from code, for example `code: "await api.examples.exampleId.workflow.post({ params: { exampleId: dictionary.exampleId }, query: { q: dictionary.q }, body: dictionary.body })"` with `dictionary: { "exampleId": "sample", "q": "hello", "body": { "message": "hello", "priority": "high" } }`. Route method calls accept an object with optional `params`, `query`, `headers`, and `body`. Parameterized path segments become plain parameter-name properties in the proxy. Code is normalized before execution, so fenced code blocks, expressions, top-level await, function declarations, and export defaults are accepted.',
 			inputSchema: executeInputSchema,
 		},
 		async ({ code, dictionary }, extra) => {

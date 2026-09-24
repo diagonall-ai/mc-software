@@ -3,7 +3,7 @@ import { handleApiRequest } from "~/lib/api";
 
 const handler = (request: Request) => handleApiRequest(request);
 
-export const Route = createFileRoute("/api/v1/$")({
+export const Route = createFileRoute("/api/$")({
 	server: {
 		handlers: {
 			GET: ({ request }) => handler(request),
