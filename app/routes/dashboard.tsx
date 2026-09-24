@@ -22,7 +22,6 @@ import {
 	UserRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { ApiKeyDrawer } from "~/components/api-keys/api-key-drawer";
 import {
 	DASHBOARD_HEADER_ACTIONS_PORTAL_ID,
@@ -57,6 +56,7 @@ import {
 } from "~/components/ui/sidebar";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
+import { toast } from "~/components/ui/toast";
 import {
 	Tooltip,
 	TooltipContent,
@@ -156,13 +156,15 @@ function DashboardShell() {
 
 		try {
 			await navigator.clipboard.writeText(mcpUrl);
-			toast.success("URL MCP copiée");
+			toast.add({ title: "URL MCP copiée", type: "success" });
 		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? error.message
-					: "Copie de l’URL MCP impossible",
-			);
+			toast.add({
+				title:
+					error instanceof Error
+						? error.message
+						: "Copie de l’URL MCP impossible",
+				type: "error",
+			});
 		}
 	}
 
@@ -204,11 +206,14 @@ function DashboardShell() {
 							<div className="flex items-center gap-2">
 								<SidebarTrigger />
 								{pageHeader?.backHref ? (
-									<Button asChild size="icon-sm" type="button" variant="ghost">
-										<Link to={pageHeader.backHref} viewTransition>
-											<ArrowLeft className="size-4" />
-											<span className="sr-only">Retour</span>
-										</Link>
+									<Button
+										nativeButton={false}
+										render={<Link to={pageHeader.backHref} viewTransition />}
+										size="icon-sm"
+										variant="ghost"
+									>
+										<ArrowLeft className="size-4" />
+										<span className="sr-only">Retour</span>
 									</Button>
 								) : null}
 								<div className="min-w-0 leading-tight">
@@ -245,11 +250,12 @@ function DashboardSidebarLink({
 }) {
 	const { isCollapsed, isMobile } = useSidebar();
 	const button = (
-		<SidebarMenuButton asChild isActive={isActive}>
-			<Link to={link.to} viewTransition>
-				<link.icon className="size-4 shrink-0" />
-				<SidebarLabel>{link.label}</SidebarLabel>
-			</Link>
+		<SidebarMenuButton
+			isActive={isActive}
+			render={<Link to={link.to} viewTransition />}
+		>
+			<link.icon className="size-4 shrink-0" />
+			<SidebarLabel>{link.label}</SidebarLabel>
 		</SidebarMenuButton>
 	);
 
@@ -257,7 +263,7 @@ function DashboardSidebarLink({
 		<SidebarMenuItem>
 			{isCollapsed && !isMobile ? (
 				<Tooltip>
-					<TooltipTrigger asChild>{button}</TooltipTrigger>
+					<TooltipTrigger render={button} />
 					<TooltipContent side="right" sideOffset={10}>
 						{link.label}
 					</TooltipContent>
@@ -319,31 +325,32 @@ function SessionFooter({
 			/>
 			<div className={cn("rounded-xl", className)}>
 				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button
-							className="h-10 w-full justify-start rounded-xl px-3"
-							variant="ghost"
-						>
-							<div className="flex min-w-0 items-center gap-2 text-left">
-								<Avatar className="size-6.5 border border-border/70">
-									<AvatarImage alt={userLabel} src={user?.image ?? undefined} />
-									<AvatarFallback>{getInitials(userLabel)}</AvatarFallback>
-								</Avatar>
-								<div className="min-w-0 space-y-0.5">
-									<p className="truncate text-xs font-medium leading-tight">
-										{userLabel}
-									</p>
-									<p className="truncate text-[11px] leading-tight text-muted-foreground">
-										{user?.email ?? "Compte"}
-									</p>
-								</div>
+					<DropdownMenuTrigger
+						render={
+							<Button
+								className="h-10 w-full justify-start rounded-xl px-3"
+								variant="ghost"
+							/>
+						}
+					>
+						<div className="flex min-w-0 items-center gap-2 text-left">
+							<Avatar className="size-6.5 border border-border/70">
+								<AvatarImage alt={userLabel} src={user?.image ?? undefined} />
+								<AvatarFallback>{getInitials(userLabel)}</AvatarFallback>
+							</Avatar>
+							<div className="min-w-0 space-y-0.5">
+								<p className="truncate text-xs font-medium leading-tight">
+									{userLabel}
+								</p>
+								<p className="truncate text-[11px] leading-tight text-muted-foreground">
+									{user?.email ?? "Compte"}
+								</p>
 							</div>
-						</Button>
+						</div>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent
 						align="start"
 						className="w-56"
-						collisionPadding={12}
 						side="right"
 						sideOffset={10}
 					>
@@ -378,40 +385,36 @@ function CompteMenuItems({
 }) {
 	return (
 		<>
-			<DropdownMenuItem asChild>
-				<a href="/api/v1/docs">
-					<BookOpen className="size-4" />
-					<span>Référence API</span>
-				</a>
+			<DropdownMenuItem render={<a href="/api/v1/docs" />}>
+				<BookOpen className="size-4" />
+				<span>Référence API</span>
 			</DropdownMenuItem>
-			<DropdownMenuItem onSelect={onOpenApiKeys}>
+			<DropdownMenuItem onClick={onOpenApiKeys}>
 				<Key className="size-4" />
 				<span>Clés API</span>
 			</DropdownMenuItem>
-			<DropdownMenuItem onSelect={onOpenPendingInvitations}>
+			<DropdownMenuItem onClick={onOpenPendingInvitations}>
 				<Mail className="size-4" />
 				<span>Invitations</span>
 			</DropdownMenuItem>
-			<DropdownMenuItem onSelect={() => void onCopyMcpUrl()}>
+			<DropdownMenuItem onClick={() => void onCopyMcpUrl()}>
 				<Copy className="size-4" />
 				<span>Copier l’URL MCP</span>
 			</DropdownMenuItem>
 			{activeOrganization ? (
-				<DropdownMenuItem asChild>
-					<Link to="/dashboard/organization-settings">
-						<Building2 className="size-4" />
-						<span>Paramètres de l’organisation</span>
-					</Link>
+				<DropdownMenuItem
+					render={<Link to="/dashboard/organization-settings" />}
+				>
+					<Building2 className="size-4" />
+					<span>Paramètres de l’organisation</span>
 				</DropdownMenuItem>
 			) : null}
-			<DropdownMenuItem asChild>
-				<Link to="/dashboard/profile">
-					<UserRound className="size-4" />
-					<span>Profil</span>
-				</Link>
+			<DropdownMenuItem render={<Link to="/dashboard/profile" />}>
+				<UserRound className="size-4" />
+				<span>Profil</span>
 			</DropdownMenuItem>
 			<DropdownMenuSeparator />
-			<DropdownMenuItem onSelect={() => void onSignOut()} variant="destructive">
+			<DropdownMenuItem onClick={() => void onSignOut()} variant="destructive">
 				<LogOut className="size-4" />
 				<span>Déconnexion</span>
 			</DropdownMenuItem>
@@ -519,34 +522,30 @@ function DashboardSidebarFooter({
 				/>
 				<DropdownMenu>
 					<Tooltip>
-						<TooltipTrigger asChild>
-							<DropdownMenuTrigger asChild>
-								<Button
-									className="m-0 h-14 w-full rounded-none border-0"
-									size="icon"
-									variant="ghost"
-								>
-									<Avatar className="size-8 border border-border/70" size="lg">
-										<AvatarImage
-											alt={userLabel}
-											src={user?.image ?? undefined}
+						<TooltipTrigger
+							render={
+								<DropdownMenuTrigger
+									render={
+										<Button
+											className="m-0 h-14 w-full rounded-none border-0"
+											size="icon"
+											variant="ghost"
 										/>
-										<AvatarFallback>{getInitials(userLabel)}</AvatarFallback>
-									</Avatar>
-									<span className="sr-only">Ouvrir le menu du compte</span>
-								</Button>
-							</DropdownMenuTrigger>
+									}
+								/>
+							}
+						>
+							<Avatar className="size-8 border border-border/70" size="lg">
+								<AvatarImage alt={userLabel} src={user?.image ?? undefined} />
+								<AvatarFallback>{getInitials(userLabel)}</AvatarFallback>
+							</Avatar>
+							<span className="sr-only">Ouvrir le menu du compte</span>
 						</TooltipTrigger>
 						<TooltipContent side="right" sideOffset={10}>
 							Menu du compte
 						</TooltipContent>
 					</Tooltip>
-					<DropdownMenuContent
-						align="start"
-						collisionPadding={12}
-						side="right"
-						sideOffset={10}
-					>
+					<DropdownMenuContent align="start" side="right" sideOffset={10}>
 						<CompteMenuItems
 							activeOrganization={activeOrganization}
 							onCopyMcpUrl={onCopyMcpUrl}
@@ -669,7 +668,7 @@ function ThemeToggle({
 	if (isCollapsed && !isMobile) {
 		return (
 			<Tooltip>
-				<TooltipTrigger asChild>{collapsedButton}</TooltipTrigger>
+				<TooltipTrigger render={collapsedButton} />
 				<TooltipContent side="right" sideOffset={10}>
 					{label}
 				</TooltipContent>

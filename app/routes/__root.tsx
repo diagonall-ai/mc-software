@@ -10,7 +10,7 @@ import {
 	NotFoundRouteState,
 	RouteErrorComponent,
 } from "~/components/route-error-state";
-import { Toaster } from "~/components/ui/sonner";
+import { Toaster } from "~/components/ui/toast";
 import { TooltipProvider } from "~/components/ui/tooltip";
 import { PROJECT_NAME } from "~/lib/project";
 import type { AppRouterContext } from "~/router-context";
@@ -61,7 +61,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 				<TooltipProvider>
 					<NavigationProgress />
 					{children}
-					<Toaster richColors />
+					<Toaster />
 					<Scripts />
 				</TooltipProvider>
 			</body>

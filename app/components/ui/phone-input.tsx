@@ -1,7 +1,10 @@
 "use client";
 
+import { mergeProps } from "@base-ui/react/merge-props";
+import type { Popover as PopoverPrimitive } from "@base-ui/react/popover";
+import { useRender } from "@base-ui/react/use-render";
+import { cn } from "cn";
 import { Check, ChevronDown } from "lucide-react";
-import { Slot as SlotPrimitive } from "radix-ui";
 import * as React from "react";
 import {
 	Command,
@@ -22,7 +25,6 @@ import { useAsRef } from "~/hooks/use-as-ref";
 import { useIsomorphicLayoutEffect } from "~/hooks/use-isomorphic-layout-effect";
 import { useLazyRef } from "~/hooks/use-lazy-ref";
 import { useComposedRefs } from "~/lib/compose-refs";
-import { cn } from "~/lib/utils";
 
 const ROOT_NAME = "PhoneInput";
 const COUNTRY_SELECT_NAME = "PhoneInputCountrySelect";
@@ -442,7 +444,9 @@ function usePhoneInputContext(consumerName: string) {
 	return context;
 }
 
-interface PhoneInputProps extends React.ComponentProps<"div"> {
+interface PhoneInputProps
+	extends React.ComponentProps<"div">,
+		useRender.ComponentProps<"div"> {
 	defaultValue?: string;
 	value?: string;
 	onValueChange?: (value: string) => void;
@@ -452,7 +456,6 @@ interface PhoneInputProps extends React.ComponentProps<"div"> {
 	countries?: Country[];
 	name?: string;
 	placeholder?: string;
-	asChild?: boolean;
 	disabled?: boolean;
 	readOnly?: boolean;
 	required?: boolean;
@@ -471,13 +474,13 @@ function PhoneInput(props: PhoneInputProps) {
 		countries = getCountries(),
 		name,
 		placeholder = "Enter phone number",
-		asChild,
 		disabled,
 		required,
 		readOnly,
 		invalid,
 		showFlag = true,
 		className,
+		render,
 		id,
 		ref,
 		...rootProps
@@ -597,25 +600,33 @@ function PhoneInput(props: PhoneInputProps) {
 		],
 	);
 
-	const RootPrimitive = asChild ? SlotPrimitive.Slot : "div";
+	const element = useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				role: "group",
+				id: rootId,
+				ref: composedRef,
+				className: cn(
+					"relative flex h-10 w-full items-center rounded-md border border-input bg-background transition-colors has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-[3px] has-[[data-slot=input-group-control]:focus-visible]:ring-ring/50 has-[[data-slot][aria-invalid=true]]:border-destructive has-[[data-slot][aria-invalid=true]]:ring-[3px] has-[[data-slot][aria-invalid=true]]:ring-destructive/20 data-disabled:cursor-not-allowed data-disabled:opacity-50 dark:bg-input/30 dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40",
+					className,
+				),
+			},
+			rootProps,
+		),
+		render,
+		state: {
+			slot: "phone-input",
+			disabled: disabled ? "" : undefined,
+			invalid: invalid ? "" : undefined,
+			readonly: readOnly ? "" : undefined,
+		},
+	});
 
 	return (
 		<StoreContext.Provider value={store}>
 			<PhoneInputContext.Provider value={contextValue}>
-				<RootPrimitive
-					role="group"
-					data-slot="phone-input"
-					data-disabled={disabled ? "" : undefined}
-					data-invalid={invalid ? "" : undefined}
-					data-readonly={readOnly ? "" : undefined}
-					id={rootId}
-					{...rootProps}
-					ref={composedRef}
-					className={cn(
-						"relative flex h-10 w-full items-center rounded-md border border-input bg-background transition-colors has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot][aria-invalid=true]]:border-destructive has-[[data-slot=input-group-control]:focus-visible]:ring-[3px] has-[[data-slot=input-group-control]:focus-visible]:ring-ring/50 has-[[data-slot][aria-invalid=true]]:ring-[3px] has-[[data-slot][aria-invalid=true]]:ring-destructive/20 data-disabled:cursor-not-allowed data-disabled:opacity-50 dark:bg-input/30 dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40",
-						className,
-					)}
-				/>
+				{element}
 				{isFormControl && (
 					<VisuallyHiddenInput
 						type="hidden"
@@ -659,13 +670,14 @@ function PhoneInputCountrySelect(props: PhoneInputCountrySelectProps) {
 
 	const countryContext = countries.find((c) => c.code === country);
 
-	const onOpenChange = React.useCallback(
-		(open: boolean) => {
-			store.setState("open", open);
-			onOpenChangeRef.current?.(open);
-		},
-		[store, onOpenChangeRef],
-	);
+	const onOpenChange: NonNullable<PopoverPrimitive.Root.Props["onOpenChange"]> =
+		React.useCallback(
+			(open, eventDetails) => {
+				store.setState("open", open);
+				onOpenChangeRef.current?.(open, eventDetails);
+			},
+			[store, onOpenChangeRef],
+		);
 
 	return (
 		<Popover open={open} onOpenChange={onOpenChange} {...popoverProps}>
@@ -673,7 +685,7 @@ function PhoneInputCountrySelect(props: PhoneInputCountrySelectProps) {
 				data-slot="phone-input-country-select"
 				disabled={isDisabled}
 				className={cn(
-					"flex h-full shrink-0 items-center gap-2 rounded-l-md border-input border-r bg-transparent px-3 text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:z-10 focus-visible:border-ring focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
+					"flex h-full shrink-0 items-center gap-2 rounded-l-md border-r border-input bg-transparent px-3 text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:z-10 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
 					className,
 				)}
 			>
@@ -794,7 +806,7 @@ function PhoneInputField(props: React.ComponentProps<"input">) {
 			{...inputProps}
 			ref={composedRef}
 			className={cn(
-				"h-full flex-1 rounded-r-md rounded-l-none border-0 bg-transparent shadow-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:bg-transparent aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20 dark:bg-transparent dark:aria-invalid:ring-destructive/40 dark:disabled:bg-transparent",
+				"h-full flex-1 rounded-l-none rounded-r-md border-0 bg-transparent shadow-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:bg-transparent aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20 dark:bg-transparent dark:disabled:bg-transparent dark:aria-invalid:ring-destructive/40",
 				className,
 			)}
 			placeholder={placeholder}

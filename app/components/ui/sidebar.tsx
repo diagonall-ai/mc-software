@@ -1,4 +1,5 @@
-import { Slot } from "@radix-ui/react-slot";
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
 import { PanelLeftIcon } from "lucide-react";
 import * as React from "react";
 
@@ -187,31 +188,31 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function SidebarMenuButton({
-	asChild = false,
+	render,
 	isActive = false,
 	className,
-	children,
 	...props
-}: React.ComponentProps<"button"> & {
-	asChild?: boolean;
+}: useRender.ComponentProps<"button"> & {
 	isActive?: boolean;
 }) {
 	const { isCollapsed, isMobile } = useSidebar();
-	const Comp = asChild ? Slot : "button";
 
-	return (
-		<Comp
-			className={cn(
-				"flex h-9 w-full items-center gap-2 overflow-hidden rounded-lg px-2 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground focus:outline-hidden focus:ring-2 focus:ring-ring",
-				isActive && "bg-accent text-accent-foreground shadow-sm",
-				isCollapsed && !isMobile && "justify-center px-0",
-				className,
-			)}
-			{...props}
-		>
-			{children}
-		</Comp>
-	);
+	return useRender({
+		defaultTagName: "button",
+		props: mergeProps<"button">(
+			{
+				className: cn(
+					"flex h-9 w-full items-center gap-2 overflow-hidden rounded-lg px-2 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground focus:outline-hidden focus:ring-2 focus:ring-ring",
+					isActive && "bg-accent text-accent-foreground shadow-sm",
+					isCollapsed && !isMobile && "justify-center px-0",
+					className,
+				),
+			},
+			props,
+		),
+		render,
+		state: { slot: "sidebar-menu-button", active: isActive },
+	});
 }
 
 export {

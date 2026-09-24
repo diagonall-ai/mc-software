@@ -166,15 +166,22 @@ function AuthenticatedContinueCard({ search }: { search: McpSearchParams }) {
 					</div>
 				)}
 				{hasAuthorizationContext ? (
-					<Button asChild className="w-full">
-						<a href={authorizeUrl}>
-							<LogIn className="size-4" />
-							Continue
-						</a>
+					<Button
+						className="w-full"
+						nativeButton={false}
+						render={<a href={authorizeUrl} />}
+					>
+						<LogIn className="size-4" />
+						Continue
 					</Button>
 				) : (
-					<Button asChild className="w-full" variant="outline">
-						<a href="/dashboard">Go to dashboard</a>
+					<Button
+						className="w-full"
+						nativeButton={false}
+						render={<a href="/dashboard" />}
+						variant="outline"
+					>
+						Go to dashboard
 					</Button>
 				)}
 			</CardContent>

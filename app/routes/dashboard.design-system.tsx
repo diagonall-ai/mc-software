@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
-import { toast } from "sonner";
 import ExampleChatbot from "~/components/ai-elements/example-chatbot";
 import {
 	DashboardFooterLeftPortal,
@@ -360,6 +359,7 @@ import {
 	TimelineTime,
 	TimelineTitle,
 } from "~/components/ui/timeline";
+import { toast } from "~/components/ui/toast";
 import { Toggle } from "~/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
 import {
@@ -588,8 +588,9 @@ function PageIntro() {
 				</CardTitle>
 				<CardDescription className="max-w-3xl text-sm leading-6">
 					This page renders the current shadcn primitives and the composite docs
-					patterns used by the template. Notifications use Sonner only, and the
-					calendar/date-picker path is wired to the shared calendar component.
+					patterns used by the template. Notifications use the toast component,
+					and the calendar/date-picker path is wired to the shared calendar
+					component.
 				</CardDescription>
 			</CardHeader>
 		</Card>
@@ -652,7 +653,7 @@ function ActionsShowcase() {
 					<Toggle aria-label="Toggle notifications" pressed>
 						<Bell className="size-4" />
 					</Toggle>
-					<ToggleGroup defaultValue="week" type="single">
+					<ToggleGroup defaultValue={["week"]}>
 						<ToggleGroupItem value="day">Day</ToggleGroupItem>
 						<ToggleGroupItem value="week">Week</ToggleGroupItem>
 						<ToggleGroupItem value="month">Month</ToggleGroupItem>
@@ -710,7 +711,7 @@ function FeedbackShowcase() {
 	return (
 		<ShowcaseCard
 			className="border-border/70"
-			description="Alert, sonner, progress, spinner, skeleton, and empty state."
+			description="Alert, toast, progress, spinner, skeleton, and empty state."
 			title="Feedback"
 		>
 			<div className="space-y-5">
@@ -725,11 +726,14 @@ function FeedbackShowcase() {
 				<div className="flex flex-wrap items-center gap-3">
 					<Button
 						onClick={() =>
-							toast.success("Sonner is the only notification path in this app.")
+							toast.add({
+								title: "Toast is the only notification path in this app.",
+								type: "success",
+							})
 						}
 						variant="outline"
 					>
-						Trigger Sonner
+						Trigger toast
 					</Button>
 					<div className="flex items-center gap-2 text-sm text-muted-foreground">
 						<Spinner />
@@ -948,8 +952,8 @@ function OverlayShowcase() {
 			<TooltipProvider>
 				<div className="flex flex-wrap items-center gap-3">
 					<Dialog>
-						<DialogTrigger asChild>
-							<Button variant="outline">Dialog</Button>
+						<DialogTrigger render={<Button variant="outline" />}>
+							Dialog
 						</DialogTrigger>
 						<DialogContent>
 							<DialogHeader>
@@ -964,8 +968,8 @@ function OverlayShowcase() {
 						</DialogContent>
 					</Dialog>
 					<AlertDialog>
-						<AlertDialogTrigger asChild>
-							<Button variant="outline">Alert Dialog</Button>
+						<AlertDialogTrigger render={<Button variant="outline" />}>
+							Alert Dialog
 						</AlertDialogTrigger>
 						<AlertDialogContent>
 							<AlertDialogHeader>
@@ -987,8 +991,8 @@ function OverlayShowcase() {
 						</AlertDialogContent>
 					</AlertDialog>
 					<Sheet>
-						<SheetTrigger asChild>
-							<Button variant="outline">Sheet</Button>
+						<SheetTrigger render={<Button variant="outline" />}>
+							Sheet
 						</SheetTrigger>
 						<SheetContent>
 							<SheetHeader>
@@ -1001,8 +1005,8 @@ function OverlayShowcase() {
 						</SheetContent>
 					</Sheet>
 					<Drawer>
-						<DrawerTrigger asChild>
-							<Button variant="outline">Drawer</Button>
+						<DrawerTrigger render={<Button variant="outline" />}>
+							Drawer
 						</DrawerTrigger>
 						<DrawerContent>
 							<DrawerHeader>
@@ -1014,15 +1018,15 @@ function OverlayShowcase() {
 							</DrawerHeader>
 							<DrawerFooter>
 								<Button>Save</Button>
-								<DrawerClose asChild>
-									<Button variant="outline">Close</Button>
+								<DrawerClose render={<Button variant="outline" />}>
+									Close
 								</DrawerClose>
 							</DrawerFooter>
 						</DrawerContent>
 					</Drawer>
 					<Popover>
-						<PopoverTrigger asChild>
-							<Button variant="outline">Popover</Button>
+						<PopoverTrigger render={<Button variant="outline" />}>
+							Popover
 						</PopoverTrigger>
 						<PopoverContent className="w-72">
 							<p className="text-sm font-medium">Inline decision</p>
@@ -1032,8 +1036,8 @@ function OverlayShowcase() {
 						</PopoverContent>
 					</Popover>
 					<HoverCard>
-						<HoverCardTrigger asChild>
-							<Button variant="outline">Hover Card</Button>
+						<HoverCardTrigger render={<Button variant="outline" />}>
+							Hover Card
 						</HoverCardTrigger>
 						<HoverCardContent className="w-72">
 							<p className="text-sm font-medium">Operator profile</p>
@@ -1043,10 +1047,8 @@ function OverlayShowcase() {
 						</HoverCardContent>
 					</HoverCard>
 					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button size="icon" variant="outline">
-								<Bell className="size-4" />
-							</Button>
+						<TooltipTrigger render={<Button size="icon" variant="outline" />}>
+							<Bell className="size-4" />
 						</TooltipTrigger>
 						<TooltipContent>Tooltip</TooltipContent>
 					</Tooltip>
@@ -1054,11 +1056,13 @@ function OverlayShowcase() {
 				<div className="mt-5 space-y-2">
 					<Label>Date Picker</Label>
 					<Popover>
-						<PopoverTrigger asChild>
-							<Button className="w-full justify-between" variant="outline">
-								{date ? format(date, "PPP") : "Pick a date"}
-								<CalendarIcon className="size-4" />
-							</Button>
+						<PopoverTrigger
+							render={
+								<Button className="w-full justify-between" variant="outline" />
+							}
+						>
+							{date ? format(date, "PPP") : "Pick a date"}
+							<CalendarIcon className="size-4" />
 						</PopoverTrigger>
 						<PopoverContent align="start" className="w-auto p-0">
 							<Calendar mode="single" onSelect={setDate} selected={date} />
@@ -1080,8 +1084,8 @@ function MenuShowcase() {
 			<div className="space-y-5">
 				<div className="flex flex-wrap items-center gap-3">
 					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant="outline">Dropdown Menu</Button>
+						<DropdownMenuTrigger render={<Button variant="outline" />}>
+							Dropdown Menu
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start">
 							<DropdownMenuItem>Profile</DropdownMenuItem>
@@ -1118,7 +1122,7 @@ function MenuShowcase() {
 						</MenubarContent>
 					</MenubarMenu>
 				</Menubar>
-				<NavigationMenu viewport={false}>
+				<NavigationMenu>
 					<NavigationMenuList>
 						<NavigationMenuItem>
 							<NavigationMenuTrigger>Platform</NavigationMenuTrigger>
@@ -1222,11 +1226,7 @@ function StructureShowcase() {
 			title="Structure"
 		>
 			<div className="space-y-5">
-				<Accordion
-					className="w-full rounded-xl border border-border/70 px-4"
-					type="single"
-					collapsible
-				>
+				<Accordion className="w-full rounded-xl border border-border/70 px-4">
 					<AccordionItem value="overview">
 						<AccordionTrigger>Accordion</AccordionTrigger>
 						<AccordionContent>
@@ -1235,8 +1235,8 @@ function StructureShowcase() {
 					</AccordionItem>
 				</Accordion>
 				<Collapsible className="rounded-xl border border-border/70 p-4">
-					<CollapsibleTrigger asChild>
-						<Button variant="ghost">Collapsible section</Button>
+					<CollapsibleTrigger render={<Button variant="ghost" />}>
+						Collapsible section
 					</CollapsibleTrigger>
 					<CollapsibleContent className="pt-3 text-sm text-muted-foreground">
 						Collapsible is the lighter alternative when a full accordion group
@@ -1364,7 +1364,7 @@ function NavigationShowcase() {
 						Good fit for settings, billing, and account subareas.
 					</TabsContent>
 				</Tabs>
-				<DirectionProvider dir="rtl">
+				<DirectionProvider direction="rtl">
 					<div className="rounded-xl border border-dashed border-border/70 p-3 text-sm text-muted-foreground">
 						Direction provider can wrap RTL-sensitive UI when needed.
 					</div>
@@ -1586,10 +1586,12 @@ function DiceInputsShowcase() {
 								Use the compound pieces below to style the queue however you
 								want.
 							</p>
-							<FileUploadTrigger asChild>
-								<Button className="mt-4" size="sm" variant="secondary">
-									Choose files
-								</Button>
+							<FileUploadTrigger
+								render={
+									<Button className="mt-4" size="sm" variant="secondary" />
+								}
+							>
+								Choose files
 							</FileUploadTrigger>
 						</FileUploadDropzone>
 						<FileUploadList className="space-y-2">
@@ -1598,18 +1600,16 @@ function DiceInputsShowcase() {
 									<FileUploadItemPreview />
 									<FileUploadItemMetadata className="min-w-0 flex-1" />
 									<FileUploadItemProgress className="w-24" />
-									<FileUploadItemDelete asChild>
-										<Button size="sm" variant="ghost">
-											Remove
-										</Button>
+									<FileUploadItemDelete
+										render={<Button size="sm" variant="ghost" />}
+									>
+										Remove
 									</FileUploadItemDelete>
 								</FileUploadItem>
 							))}
 						</FileUploadList>
-						<FileUploadClear asChild>
-							<Button size="sm" variant="ghost">
-								Clear queue
-							</Button>
+						<FileUploadClear render={<Button size="sm" variant="ghost" />}>
+							Clear queue
 						</FileUploadClear>
 					</FileUpload>
 				</div>

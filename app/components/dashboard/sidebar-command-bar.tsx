@@ -78,17 +78,19 @@ export function DashboardSidebarCommandBar({
 		return (
 			<>
 				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							className="m-0 h-14 w-full rounded-none border-b border-border/70"
-							onClick={() => setOpen(true)}
-							size="icon"
-							type="button"
-							variant="ghost"
-						>
-							<Command className="size-4" />
-							<span className="sr-only">Rechercher une commande</span>
-						</Button>
+					<TooltipTrigger
+						render={
+							<Button
+								className="m-0 h-14 w-full rounded-none border-b border-border/70"
+								onClick={() => setOpen(true)}
+								size="icon"
+								type="button"
+								variant="ghost"
+							/>
+						}
+					>
+						<Command className="size-4" />
+						<span className="sr-only">Rechercher une commande</span>
 					</TooltipTrigger>
 					<TooltipContent side="right" sideOffset={10}>
 						Rechercher

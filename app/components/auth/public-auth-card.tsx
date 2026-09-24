@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import {
 	Card,
@@ -12,6 +11,7 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { toast } from "~/components/ui/toast";
 import { authClient } from "~/lib/auth-client";
 import { ensureOrganizationForSession } from "~/lib/organization";
 import { PROJECT_NAME } from "~/lib/project";
@@ -61,7 +61,10 @@ function LoginForm({ onAuthSuccess }: { onAuthSuccess?: () => void }) {
 				password,
 			});
 			if (authError) {
-				toast.error(authError.message ?? "Connexion impossible");
+				toast.add({
+					title: authError.message ?? "Connexion impossible",
+					type: "error",
+				});
 				return;
 			}
 			await ensureOrganizationForSession(authClient, { email });
@@ -71,7 +74,10 @@ function LoginForm({ onAuthSuccess }: { onAuthSuccess?: () => void }) {
 				navigate({ to: "/dashboard" });
 			}
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Connexion impossible");
+			toast.add({
+				title: err instanceof Error ? err.message : "Connexion impossible",
+				type: "error",
+			});
 		} finally {
 			setLoading(false);
 		}
@@ -116,15 +122,17 @@ function SignUpForm({ onAuthSuccess }: { onAuthSuccess?: () => void }) {
 			await waitForAuthSession();
 			await ensureOrganizationForSession(authClient, { email, name });
 		} catch (err) {
-			toast.error("Compte créé, mais l’espace n’a pas pu être initialisé", {
-				action: {
-					label: "Réessayer",
+			toast.add({
+				title: "Compte créé, mais l’espace n’a pas pu être initialisé",
+				description: getErrorMessage(err),
+				type: "error",
+				timeout: 10_000,
+				actionProps: {
+					children: "Réessayer",
 					onClick: () => {
 						void finishSignUp(email, name);
 					},
 				},
-				description: getErrorMessage(err),
-				duration: 10_000,
 			});
 			return;
 		}
@@ -146,7 +154,10 @@ function SignUpForm({ onAuthSuccess }: { onAuthSuccess?: () => void }) {
 		const superAdminPassword = formData.get("superAdminPassword") as string;
 
 		if (password !== confirmPassword) {
-			toast.error("Les mots de passe ne correspondent pas");
+			toast.add({
+				title: "Les mots de passe ne correspondent pas",
+				type: "error",
+			});
 			return;
 		}
 
@@ -161,14 +172,19 @@ function SignUpForm({ onAuthSuccess }: { onAuthSuccess?: () => void }) {
 				},
 			);
 			if (authError) {
-				toast.error(authError.message ?? "Création du compte impossible");
+				toast.add({
+					title: authError.message ?? "Création du compte impossible",
+					type: "error",
+				});
 				return;
 			}
 			await finishSignUp(email, name);
 		} catch (err) {
-			toast.error(
-				err instanceof Error ? err.message : "Création du compte impossible",
-			);
+			toast.add({
+				title:
+					err instanceof Error ? err.message : "Création du compte impossible",
+				type: "error",
+			});
 		} finally {
 			setLoading(false);
 		}

@@ -126,26 +126,25 @@ export function OrganizationSwitcher({
 		<>
 			<Popover onOpenChange={setOpen} open={open}>
 				{loadingActiveOrganization || loadingOrganizations ? (
-					<PopoverTrigger asChild>
-						<OrganizationSwitcherSkeleton isCollapsed={isCollapsed} />
-					</PopoverTrigger>
+					<PopoverTrigger
+						render={<OrganizationSwitcherSkeleton isCollapsed={isCollapsed} />}
+					/>
 				) : isCollapsed ? (
 					<Tooltip>
-						<TooltipTrigger asChild>
-							<PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
-						</TooltipTrigger>
+						<TooltipTrigger
+							render={<PopoverTrigger render={triggerButton} />}
+						/>
 						<TooltipContent side="right" sideOffset={10}>
 							{organizationLabel}
 						</TooltipContent>
 					</Tooltip>
 				) : (
-					<PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
+					<PopoverTrigger render={triggerButton} />
 				)}
 				<PopoverContent
 					align="start"
 					alignOffset={4}
 					className="w-[16.5rem] rounded-md border-border/60 p-0 shadow-lg"
-					collisionPadding={12}
 					side="right"
 					sideOffset={12}
 				>

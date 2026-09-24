@@ -2,7 +2,6 @@
 
 import { Loader2, Mail, UserCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -13,6 +12,7 @@ import {
 	DrawerTitle,
 	DrawerTrigger,
 } from "~/components/ui/drawer";
+import { toast } from "~/components/ui/toast";
 import { authClient } from "~/lib/auth-client";
 
 type InvitationLike = {
@@ -87,7 +87,7 @@ export function PendingInvitationsDrawer({
 	async function handleAcceptInvitation(invitation: InvitationLike) {
 		const invitationId = getInvitationId(invitation);
 		if (!invitationId) {
-			toast.error("ID d’invitation manquant");
+			toast.add({ title: "ID d’invitation manquant", type: "error" });
 			return;
 		}
 
@@ -122,38 +122,42 @@ export function PendingInvitationsDrawer({
 			}
 
 			await loadInvitations();
-			toast.success("Invitation acceptée");
+			toast.add({ title: "Invitation acceptée", type: "success" });
 		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? error.message
-					: "Acceptation de l’invitation impossible",
-			);
+			toast.add({
+				title:
+					error instanceof Error
+						? error.message
+						: "Acceptation de l’invitation impossible",
+				type: "error",
+			});
 		} finally {
 			setProcessingInvitationId(null);
 		}
 	}
 
 	return (
-		<Drawer direction="right" onOpenChange={handleOpenChange} open={open}>
+		<Drawer onOpenChange={handleOpenChange} open={open} swipeDirection="right">
 			{showTrigger ? (
-				<DrawerTrigger asChild>
-					<Button
-						className={
-							collapsed
-								? "m-0 h-16 w-full rounded-none border-b border-border-70"
-								: "justify-start border-border/70"
-						}
-						size={collapsed ? "icon" : "default"}
-						variant={collapsed ? "ghost" : "outline"}
-					>
-						<Mail className="size-4" />
-						{collapsed ? (
-							<span className="sr-only">Invitations</span>
-						) : (
-							<span>Invitations</span>
-						)}
-					</Button>
+				<DrawerTrigger
+					render={
+						<Button
+							className={
+								collapsed
+									? "m-0 h-16 w-full rounded-none border-b border-border-70"
+									: "justify-start border-border/70"
+							}
+							size={collapsed ? "icon" : "default"}
+							variant={collapsed ? "ghost" : "outline"}
+						/>
+					}
+				>
+					<Mail className="size-4" />
+					{collapsed ? (
+						<span className="sr-only">Invitations</span>
+					) : (
+						<span>Invitations</span>
+					)}
 				</DrawerTrigger>
 			) : null}
 			<DrawerContent className="w-full border-border/70 sm:w-[40rem] sm:max-w-[40rem]">

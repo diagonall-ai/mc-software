@@ -50,7 +50,7 @@ export const SourcesContent = ({
 	<CollapsibleContent
 		className={cn(
 			"mt-3 flex w-fit flex-col gap-2",
-			"data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+			"outline-none transition-[opacity,translate] duration-200 data-ending-style:-translate-y-2 data-ending-style:opacity-0 data-starting-style:-translate-y-2 data-starting-style:opacity-0",
 			className,
 		)}
 		{...props}

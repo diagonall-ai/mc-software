@@ -1,5 +1,8 @@
 "use client";
 
+import { useDirection } from "@base-ui/react/direction-provider";
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
 import {
 	autoUpdate,
 	flip,
@@ -12,11 +15,8 @@ import {
 	shift,
 	useFloating,
 } from "@floating-ui/react-dom";
+import { cn } from "cn";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import {
-	Direction as DirectionPrimitive,
-	Slot as SlotPrimitive,
-} from "radix-ui";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Button } from "~/components/ui/button";
@@ -24,7 +24,6 @@ import { useAsRef } from "~/hooks/use-as-ref";
 import { useIsomorphicLayoutEffect } from "~/hooks/use-isomorphic-layout-effect";
 import { useLazyRef } from "~/hooks/use-lazy-ref";
 import { useComposedRefs } from "~/lib/compose-refs";
-import { cn } from "~/lib/utils";
 
 const ROOT_NAME = "Tour";
 const PORTAL_NAME = "TourPortal";
@@ -65,16 +64,16 @@ interface ScrollOffset {
 
 type Boundary = Element | null;
 
-interface DivProps extends React.ComponentProps<"div"> {
-	asChild?: boolean;
-}
+interface DivProps
+	extends Omit<React.ComponentProps<"div">, "children">,
+		useRender.ComponentProps<"div"> {}
 
-type StepElement = React.ComponentRef<typeof TourStep>;
-type CloseElement = React.ComponentRef<typeof TourClose>;
-type PrevElement = React.ComponentRef<typeof TourPrev>;
-type NextElement = React.ComponentRef<typeof TourNext>;
-type SkipElement = React.ComponentRef<typeof TourSkip>;
-type FooterElement = React.ComponentRef<typeof TourFooter>;
+type StepElement = HTMLDivElement;
+type CloseElement = HTMLButtonElement;
+type PrevElement = HTMLButtonElement;
+type NextElement = HTMLButtonElement;
+type SkipElement = HTMLButtonElement;
+type FooterElement = HTMLDivElement;
 
 const OPPOSITE_SIDE: Record<Side, Side> = {
 	top: "bottom",
@@ -577,11 +576,12 @@ function Tour(props: TourProps) {
 		dismissible = true,
 		modal = true,
 		stepFooter,
-		asChild,
+		render,
 		...rootProps
 	} = props;
 
-	const dir = DirectionPrimitive.useDirection(dirProp);
+	const contextDir = useDirection();
+	const dir = dirProp ?? contextDir;
 
 	const [portal, setPortal] = React.useState<HTMLElement | null>(null);
 	const prevOpenRef = React.useRef<boolean | undefined>(undefined);
@@ -680,9 +680,9 @@ function Tour(props: TourProps) {
 				store.notify();
 			},
 			notify: () => {
-				for (const listener of listenersRef.current) {
-					listener();
-				}
+				listenersRef.current.forEach((l) => {
+					l();
+				});
 			},
 			addStep: (stepData) => {
 				const id = `step-${stepIdCounterRef.current.current++}`;
@@ -819,13 +819,20 @@ function Tour(props: TourProps) {
 
 	useScrollLock(open && modal);
 
-	const RootPrimitive = asChild ? SlotPrimitive.Slot : "div";
+	const element = useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">({ dir }, rootProps),
+		render,
+		state: {
+			slot: "tour",
+		},
+	});
 
 	return (
 		<StoreContext.Provider value={store}>
 			<TourContext.Provider value={contextValue}>
 				<PortalContext.Provider value={portalContextValue}>
-					<RootPrimitive data-slot="tour" dir={dir} {...rootProps} />
+					{element}
 				</PortalContext.Provider>
 			</TourContext.Provider>
 		</StoreContext.Provider>
@@ -873,7 +880,7 @@ function TourStep(props: TourStepProps) {
 		children,
 		className,
 		style,
-		asChild,
+		render,
 		...stepProps
 	} = props;
 
@@ -1221,43 +1228,59 @@ function TourStep(props: TourStepProps) {
 		context.onCloseAutoFocus,
 	);
 
-	if (!open || !stepData || (!targetElement && !forceMount) || !isCurrentStep) {
-		return null;
-	}
-
-	const StepPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<StepContext.Provider value={stepContextValue}>
-			<StepPrimitive
-				ref={composedRef}
-				data-slot="tour-step"
-				data-side={placedSide}
-				data-align={placedAlign}
-				dir={context.dir}
-				tabIndex={-1}
-				{...stepProps}
-				onPointerDownCapture={onPointerDownCapture}
-				onFocusCapture={onFocusCapture}
-				onBlurCapture={onBlurCapture}
-				className={cn(
-					"fixed z-50 flex w-80 flex-col gap-4 rounded-lg border bg-popover p-4 text-popover-foreground shadow-md outline-none",
-					className,
-				)}
-				style={{
-					...style,
-					...floatingStyles,
-					visibility: isHidden ? "hidden" : undefined,
-					pointerEvents: isHidden ? "none" : undefined,
-				}}
-			>
+	const stepChildren = React.useMemo(
+		() => (
+			<>
 				{children}
 				{!footer && (
 					<DefaultFooterContext.Provider value={true}>
 						{context.stepFooter}
 					</DefaultFooterContext.Provider>
 				)}
-			</StepPrimitive>
+			</>
+		),
+		[children, footer, context.stepFooter],
+	);
+
+	const element = useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				ref: composedRef,
+				dir: context.dir,
+				tabIndex: -1,
+				onPointerDownCapture,
+				onFocusCapture,
+				onBlurCapture,
+				className: cn(
+					"fixed z-50 flex w-80 flex-col gap-4 rounded-lg border bg-popover p-4 text-popover-foreground shadow-md outline-none",
+					className,
+				),
+				style: {
+					...style,
+					...floatingStyles,
+					visibility: isHidden ? "hidden" : undefined,
+					pointerEvents: isHidden ? "none" : undefined,
+				},
+				children: stepChildren,
+			},
+			stepProps,
+		),
+		render,
+		state: {
+			slot: "tour-step",
+			side: placedSide,
+			align: placedAlign,
+		},
+	});
+
+	if (!open || !stepData || (!targetElement && !forceMount) || !isCurrentStep) {
+		return null;
+	}
+
+	return (
+		<StepContext.Provider value={stepContextValue}>
+			{element}
 		</StepContext.Provider>
 	);
 }
@@ -1268,7 +1291,7 @@ interface TourSpotlightProps extends DivProps {
 
 function TourSpotlight(props: TourSpotlightProps) {
 	const {
-		asChild,
+		render,
 		className,
 		style,
 		forceMount = false,
@@ -1278,25 +1301,31 @@ function TourSpotlight(props: TourSpotlightProps) {
 	const open = useStore((state) => state.open);
 	const maskPath = useStore((state) => state.maskPath);
 
+	const element = useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				className: cn(
+					"fixed inset-0 z-50 bg-black/80 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+					className,
+				),
+				style: {
+					clipPath: maskPath,
+					...style,
+				},
+			},
+			backdropProps,
+		),
+		render,
+		state: {
+			slot: "tour-spotlight",
+			state: getDataState(open),
+		},
+	});
+
 	if (!open && !forceMount) return null;
 
-	const SpotlightPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<SpotlightPrimitive
-			data-slot="tour-spotlight"
-			data-state={getDataState(open)}
-			{...backdropProps}
-			className={cn(
-				"data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/80 data-[state=closed]:animate-out data-[state=open]:animate-in",
-				className,
-			)}
-			style={{
-				clipPath: maskPath,
-				...style,
-			}}
-		/>
-	);
+	return element;
 }
 
 interface TourSpotlightRingProps extends DivProps {
@@ -1304,34 +1333,42 @@ interface TourSpotlightRingProps extends DivProps {
 }
 
 function TourSpotlightRing(props: TourSpotlightRingProps) {
-	const { asChild, className, style, forceMount = false, ...ringProps } = props;
+	const { render, className, style, forceMount = false, ...ringProps } = props;
 
 	const open = useStore((state) => state.open);
 	const spotlightRect = useStore((state) => state.spotlightRect);
 
+	const element = useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				className: cn(
+					"pointer-events-none fixed z-50 border-ring ring-[3px] ring-ring/50",
+					className,
+				),
+				style: spotlightRect
+					? {
+							left: spotlightRect.x,
+							top: spotlightRect.y,
+							width: spotlightRect.width,
+							height: spotlightRect.height,
+							...style,
+						}
+					: style,
+			},
+			ringProps,
+		),
+		render,
+		state: {
+			slot: "tour-spotlight-ring",
+			state: getDataState(open),
+		},
+	});
+
 	if (!open && !forceMount) return null;
 	if (!spotlightRect) return null;
 
-	const RingPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<RingPrimitive
-			data-slot="tour-spotlight-ring"
-			data-state={getDataState(open)}
-			{...ringProps}
-			className={cn(
-				"pointer-events-none fixed z-50 border-ring ring-[3px] ring-ring/50",
-				className,
-			)}
-			style={{
-				left: spotlightRect.x,
-				top: spotlightRect.y,
-				width: spotlightRect.width,
-				height: spotlightRect.height,
-				...style,
-			}}
-		/>
-	);
+	return element;
 }
 
 interface TourPortalProps {
@@ -1409,8 +1446,6 @@ function TourArrow(props: TourArrowProps) {
 			}}
 		>
 			<svg
-				aria-hidden="true"
-				focusable="false"
 				viewBox="0 0 30 10"
 				preserveAspectRatio="none"
 				width={width}
@@ -1425,69 +1460,81 @@ function TourArrow(props: TourArrowProps) {
 }
 
 function TourHeader(props: DivProps) {
-	const { asChild, className, ...headerProps } = props;
+	const { render, className, ...headerProps } = props;
 
 	const context = useTourContext(HEADER_NAME);
 
-	const HeaderPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<HeaderPrimitive
-			data-slot="tour-header"
-			dir={context.dir}
-			{...headerProps}
-			className={cn(
-				"flex flex-col gap-1.5 text-center sm:text-left",
-				className,
-			)}
-		/>
-	);
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				dir: context.dir,
+				className: cn(
+					"flex flex-col gap-1.5 text-center sm:text-left",
+					className,
+				),
+			},
+			headerProps,
+		),
+		render,
+		state: {
+			slot: "tour-header",
+		},
+	});
 }
 
 function TourTitle(props: DivProps) {
-	const { asChild, className, ...titleProps } = props;
+	const { render, className, ...titleProps } = props;
 
 	const context = useTourContext(TITLE_NAME);
 
-	const TitlePrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<TitlePrimitive
-			data-slot="tour-title"
-			dir={context.dir}
-			{...titleProps}
-			className={cn(
-				"font-semibold text-lg leading-none tracking-tight",
-				className,
-			)}
-		/>
-	);
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				dir: context.dir,
+				className: cn(
+					"text-lg leading-none font-semibold tracking-tight",
+					className,
+				),
+			},
+			titleProps,
+		),
+		render,
+		state: {
+			slot: "tour-title",
+		},
+	});
 }
 
 function TourDescription(props: DivProps) {
-	const { asChild, className, ...descriptionProps } = props;
+	const { render, className, ...descriptionProps } = props;
 
 	const context = useTourContext(DESCRIPTION_NAME);
 
-	const DescriptionPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<DescriptionPrimitive
-			data-slot="tour-description"
-			dir={context.dir}
-			{...descriptionProps}
-			className={cn("text-muted-foreground text-sm", className)}
-		/>
-	);
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				dir: context.dir,
+				className: cn("text-sm text-muted-foreground", className),
+			},
+			descriptionProps,
+		),
+		render,
+		state: {
+			slot: "tour-description",
+		},
+	});
 }
 
-interface TourCloseProps extends React.ComponentProps<"button"> {
-	asChild?: boolean;
-}
+interface TourCloseProps
+	extends Omit<React.ComponentProps<"button">, "children">,
+		useRender.ComponentProps<"button"> {}
 
 function TourClose(props: TourCloseProps) {
 	const {
-		asChild,
+		render,
 		className,
 		onClick: onClickProp,
 		...closeButtonProps
@@ -1505,25 +1552,32 @@ function TourClose(props: TourCloseProps) {
 		[store, onClickProp],
 	);
 
-	const ClosePrimitive = asChild ? SlotPrimitive.Slot : "button";
-
-	return (
-		<ClosePrimitive
-			type="button"
-			aria-label="Close tour"
-			className={cn(
-				"absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-				className,
-			)}
-			onClick={onClick}
-			{...closeButtonProps}
-		>
-			<X className="size-4" />
-		</ClosePrimitive>
-	);
+	return useRender({
+		defaultTagName: "button",
+		props: mergeProps<"button">(
+			{
+				type: "button",
+				"aria-label": "Close tour",
+				className: cn(
+					"absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+					className,
+				),
+				onClick,
+				children: <X className="size-4" />,
+			},
+			closeButtonProps,
+		),
+		render,
+		state: {},
+	});
 }
 
-function TourPrev(props: React.ComponentProps<typeof Button>) {
+interface TourPrevProps
+	extends Omit<React.ComponentProps<typeof Button>, "onClick"> {
+	onClick?: (event: React.MouseEvent<PrevElement>) => void;
+}
+
+function TourPrev(props: TourPrevProps) {
 	const { children, onClick: onClickProp, ...prevButtonProps } = props;
 
 	const store = useStoreContext(PREV_NAME);
@@ -1561,7 +1615,12 @@ function TourPrev(props: React.ComponentProps<typeof Button>) {
 	);
 }
 
-function TourNext(props: React.ComponentProps<typeof Button>) {
+interface TourNextProps
+	extends Omit<React.ComponentProps<typeof Button>, "onClick"> {
+	onClick?: (event: React.MouseEvent<NextElement>) => void;
+}
+
+function TourNext(props: TourNextProps) {
 	const { children, onClick: onClickProp, ...nextButtonProps } = props;
 	const store = useStoreContext(NEXT_NAME);
 	const value = useStore((state) => state.value);
@@ -1597,7 +1656,12 @@ function TourNext(props: React.ComponentProps<typeof Button>) {
 	);
 }
 
-function TourSkip(props: React.ComponentProps<typeof Button>) {
+interface TourSkipProps
+	extends Omit<React.ComponentProps<typeof Button>, "onClick"> {
+	onClick?: (event: React.MouseEvent<SkipElement>) => void;
+}
+
+function TourSkip(props: TourSkipProps) {
 	const { children, onClick: onClickProp, ...skipButtonProps } = props;
 
 	const store = useStoreContext(SKIP_NAME);
@@ -1633,7 +1697,7 @@ interface TourStepCounterProps extends DivProps {
 function TourStepCounter(props: TourStepCounterProps) {
 	const {
 		format = (current, total) => `${current} / ${total}`,
-		asChild,
+		render,
 		className,
 		children,
 		...stepCounterProps
@@ -1642,21 +1706,24 @@ function TourStepCounter(props: TourStepCounterProps) {
 	const value = useStore((state) => state.value);
 	const steps = useStore((state) => state.steps);
 
-	const StepCounterPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<StepCounterPrimitive
-			data-slot="tour-step-counter"
-			{...stepCounterProps}
-			className={cn("text-muted-foreground text-sm", className)}
-		>
-			{children ?? format(value + 1, steps.length)}
-		</StepCounterPrimitive>
-	);
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				className: cn("text-sm text-muted-foreground", className),
+				children: children ?? format(value + 1, steps.length),
+			},
+			stepCounterProps,
+		),
+		render,
+		state: {
+			slot: "tour-step-counter",
+		},
+	});
 }
 
 function TourFooter(props: DivProps) {
-	const { asChild, className, ref, ...footerProps } = props;
+	const { render, className, ref, ...footerProps } = props;
 
 	const stepContext = useStepContext(FOOTER_NAME);
 	const hasDefaultFooter = React.useContext(DefaultFooterContext);
@@ -1667,20 +1734,24 @@ function TourFooter(props: DivProps) {
 		hasDefaultFooter ? undefined : stepContext.onFooterChange,
 	);
 
-	const FooterPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<FooterPrimitive
-			data-slot="tour-footer"
-			dir={context.dir}
-			{...footerProps}
-			ref={composedRef}
-			className={cn(
-				"flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-				className,
-			)}
-		/>
-	);
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				ref: composedRef,
+				dir: context.dir,
+				className: cn(
+					"flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+					className,
+				),
+			},
+			footerProps,
+		),
+		render,
+		state: {
+			slot: "tour-footer",
+		},
+	});
 }
 
 export {

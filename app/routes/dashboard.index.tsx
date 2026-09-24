@@ -71,17 +71,23 @@ function DashboardOverviewPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					<Button asChild className="w-full justify-between" variant="outline">
-						<Link to="/dashboard/profile" viewTransition>
-							Profile page
-							<ArrowRight className="size-4" />
-						</Link>
+					<Button
+						className="w-full justify-between"
+						nativeButton={false}
+						render={<Link to="/dashboard/profile" viewTransition />}
+						variant="outline"
+					>
+						Profile page
+						<ArrowRight className="size-4" />
 					</Button>
-					<Button asChild className="w-full justify-between" variant="outline">
-						<a href="/api/v1/docs">
-							API reference
-							<ArrowRight className="size-4" />
-						</a>
+					<Button
+						className="w-full justify-between"
+						nativeButton={false}
+						render={<a href="/api/v1/docs" />}
+						variant="outline"
+					>
+						API reference
+						<ArrowRight className="size-4" />
 					</Button>
 				</CardContent>
 			</Card>

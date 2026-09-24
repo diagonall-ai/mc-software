@@ -2,7 +2,6 @@
 
 import { Check, Copy, Ellipsis, Key, Loader2, Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -30,6 +29,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { toast } from "~/components/ui/toast";
 import { authClient } from "~/lib/auth-client";
 
 type ApiKeyRecord = {
@@ -98,25 +98,27 @@ export function ApiKeyDrawer({
 	}, [loadKeys, open]);
 
 	return (
-		<Drawer direction="right" onOpenChange={handleOpenChange} open={open}>
+		<Drawer onOpenChange={handleOpenChange} open={open} swipeDirection="right">
 			{showTrigger ? (
-				<DrawerTrigger asChild>
-					<Button
-						className={
-							collapsed
-								? "m-0 h-16 w-full rounded-none border-b border-border-70"
-								: "justify-start border-border/70"
-						}
-						size={collapsed ? "icon" : "default"}
-						variant={collapsed ? "ghost" : "outline"}
-					>
-						<Key className="size-4" />
-						{collapsed ? (
-							<span className="sr-only">Clés API</span>
-						) : (
-							<span>Clés API</span>
-						)}
-					</Button>
+				<DrawerTrigger
+					render={
+						<Button
+							className={
+								collapsed
+									? "m-0 h-16 w-full rounded-none border-b border-border-70"
+									: "justify-start border-border/70"
+							}
+							size={collapsed ? "icon" : "default"}
+							variant={collapsed ? "ghost" : "outline"}
+						/>
+					}
+				>
+					<Key className="size-4" />
+					{collapsed ? (
+						<span className="sr-only">Clés API</span>
+					) : (
+						<span>Clés API</span>
+					)}
 				</DrawerTrigger>
 			) : null}
 			<DrawerContent className="w-full border-border/70 sm:w-[40rem] sm:max-w-[40rem]">
@@ -309,14 +311,16 @@ function ApiKeyRow({
 		try {
 			await authClient.apiKey.delete({ keyId: apiKey.id });
 			setDeleteDialogOpen(false);
-			toast.success("Clé API supprimée");
+			toast.add({ title: "Clé API supprimée", type: "success" });
 			onDeleted();
 		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? error.message
-					: "Suppression de la clé API impossible",
-			);
+			toast.add({
+				title:
+					error instanceof Error
+						? error.message
+						: "Suppression de la clé API impossible",
+				type: "error",
+			});
 		} finally {
 			setDeleting(false);
 		}
@@ -329,14 +333,19 @@ function ApiKeyRow({
 				enabled: !apiKey.enabled,
 				keyId: apiKey.id,
 			});
-			toast.success(apiKey.enabled ? "Clé API désactivée" : "Clé API activée");
+			toast.add({
+				title: apiKey.enabled ? "Clé API désactivée" : "Clé API activée",
+				type: "success",
+			});
 			onUpdated();
 		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? error.message
-					: "Mise à jour de la clé API impossible",
-			);
+			toast.add({
+				title:
+					error instanceof Error
+						? error.message
+						: "Mise à jour de la clé API impossible",
+				type: "error",
+			});
 		} finally {
 			setUpdating(false);
 		}
@@ -361,22 +370,24 @@ function ApiKeyRow({
 							</p>
 						</div>
 						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button disabled={updating} size="icon" variant="ghost">
-									{updating ? (
-										<Loader2 className="size-4 animate-spin" />
-									) : (
-										<Ellipsis className="size-4 text-muted-foreground" />
-									)}
-									<span className="sr-only">Actions de clé API</span>
-								</Button>
+							<DropdownMenuTrigger
+								render={
+									<Button disabled={updating} size="icon" variant="ghost" />
+								}
+							>
+								{updating ? (
+									<Loader2 className="size-4 animate-spin" />
+								) : (
+									<Ellipsis className="size-4 text-muted-foreground" />
+								)}
+								<span className="sr-only">Actions de clé API</span>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
-								<DropdownMenuItem onSelect={() => void handleToggleEnabled()}>
+								<DropdownMenuItem onClick={() => void handleToggleEnabled()}>
 									{apiKey.enabled ? "Désactiver la clé" : "Activer la clé"}
 								</DropdownMenuItem>
 								<DropdownMenuItem
-									onSelect={() => setDeleteDialogOpen(true)}
+									onClick={() => setDeleteDialogOpen(true)}
 									variant="destructive"
 								>
 									Supprimer la clé

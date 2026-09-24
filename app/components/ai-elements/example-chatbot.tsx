@@ -1,33 +1,9 @@
 "use client";
 
 import type { ToolUIPart } from "ai";
-import { CheckIcon, GlobeIcon } from "lucide-react";
+import { CheckIcon, FileTextIcon, GlobeIcon, XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useMemo, useState } from "react";
-import { toast } from "sonner";
-import {
-	Attachment,
-	type AttachmentData,
-	AttachmentPreview,
-	AttachmentRemove,
-	Attachments,
-} from "~/components/ai-elements/attachments";
-import {
-	Conversation,
-	ConversationContent,
-	ConversationScrollButton,
-} from "~/components/ai-elements/conversation";
-import {
-	Message,
-	MessageBranch,
-	MessageBranchContent,
-	MessageBranchNext,
-	MessageBranchPage,
-	MessageBranchPrevious,
-	MessageBranchSelector,
-	MessageContent,
-	MessageResponse,
-} from "~/components/ai-elements/message";
 import {
 	ModelSelector,
 	ModelSelectorContent,
@@ -70,6 +46,28 @@ import {
 } from "~/components/ai-elements/sources";
 import { SpeechInput } from "~/components/ai-elements/speech-input";
 import { Suggestion, Suggestions } from "~/components/ai-elements/suggestion";
+import { MarkdownRenderer } from "~/components/markdown/markdown-renderer";
+import {
+	Attachment,
+	AttachmentAction,
+	AttachmentActions,
+	AttachmentContent,
+	AttachmentGroup,
+	AttachmentMedia,
+	AttachmentTitle,
+} from "~/components/ui/attachment";
+import { Bubble, BubbleContent } from "~/components/ui/bubble";
+import { Marker, MarkerContent } from "~/components/ui/marker";
+import { Message, MessageContent } from "~/components/ui/message";
+import {
+	MessageScroller,
+	MessageScrollerButton,
+	MessageScrollerContent,
+	MessageScrollerItem,
+	MessageScrollerProvider,
+	MessageScrollerViewport,
+} from "~/components/ui/message-scroller";
+import { toast } from "~/components/ui/toast";
 
 interface MessageType {
 	key: string;
@@ -343,49 +341,39 @@ const delay = (ms: number): Promise<void> =>
 
 const chefs = ["OpenAI", "Anthropic", "Google"];
 
-const AttachmentItem = ({
-	attachment,
-	onRemove,
-}: {
-	attachment: AttachmentData;
-	onRemove: (id: string) => void;
-}) => {
-	const handleRemove = useCallback(() => {
-		onRemove(attachment.id);
-	}, [onRemove, attachment.id]);
-
-	return (
-		<Attachment data={attachment} onRemove={handleRemove}>
-			<AttachmentPreview />
-			<AttachmentRemove />
-		</Attachment>
-	);
-};
-
 const PromptInputAttachmentsDisplay = () => {
 	const attachments = usePromptInputAttachments();
-
-	const handleRemove = useCallback(
-		(id: string) => {
-			attachments.remove(id);
-		},
-		[attachments],
-	);
 
 	if (attachments.files.length === 0) {
 		return null;
 	}
 
 	return (
-		<Attachments variant="inline">
-			{attachments.files.map((attachment) => (
-				<AttachmentItem
-					attachment={attachment}
-					key={attachment.id}
-					onRemove={handleRemove}
-				/>
-			))}
-		</Attachments>
+		<AttachmentGroup>
+			{attachments.files.map((file) => {
+				const isImage = file.mediaType.startsWith("image/");
+				const name = file.filename ?? "Attachment";
+
+				return (
+					<Attachment key={file.id} size="sm">
+						<AttachmentMedia variant={isImage ? "image" : "icon"}>
+							{isImage ? <img alt={name} src={file.url} /> : <FileTextIcon />}
+						</AttachmentMedia>
+						<AttachmentContent>
+							<AttachmentTitle>{name}</AttachmentTitle>
+						</AttachmentContent>
+						<AttachmentActions>
+							<AttachmentAction
+								aria-label="Remove attachment"
+								onClick={() => attachments.remove(file.id)}
+							>
+								<XIcon />
+							</AttachmentAction>
+						</AttachmentActions>
+					</Attachment>
+				);
+			})}
+		</AttachmentGroup>
 	);
 };
 
@@ -539,8 +527,10 @@ const Example = () => {
 			setStatus("submitted");
 
 			if (message.files?.length) {
-				toast.success("Files attached", {
+				toast.add({
+					title: "Files attached",
 					description: `${message.files.length} file(s) attached to message`,
+					type: "success",
 				});
 			}
 
@@ -585,58 +575,72 @@ const Example = () => {
 
 	return (
 		<div className="relative flex size-full flex-col divide-y overflow-hidden">
-			<Conversation>
-				<ConversationContent>
-					{messages.map(({ versions, ...message }) => (
-						<MessageBranch defaultBranch={0} key={message.key}>
-							<MessageBranchContent>
-								{versions.map((version) => (
-									<Message
-										from={message.from}
-										key={`${message.key}-${version.id}`}
+			<MessageScrollerProvider autoScroll>
+				<MessageScroller className="min-h-0 flex-1">
+					<MessageScrollerViewport>
+						<MessageScrollerContent className="p-4">
+							<MessageScrollerItem messageId="today">
+								<Marker variant="separator">
+									<MarkerContent>Today</MarkerContent>
+								</Marker>
+							</MessageScrollerItem>
+							{messages.map(({ versions, ...message }) => {
+								// ponytail: shows the latest version only; add a version switcher if branching matters.
+								const content = versions.at(-1)?.content ?? "";
+								const isUser = message.from === "user";
+
+								return (
+									<MessageScrollerItem
+										key={message.key}
+										messageId={message.key}
+										scrollAnchor={isUser}
 									>
-										<div>
-											{message.sources?.length && (
-												<Sources>
-													<SourcesTrigger count={message.sources.length} />
-													<SourcesContent>
-														{message.sources.map((source) => (
-															<Source
-																href={source.href}
-																key={source.href}
-																title={source.title}
-															/>
-														))}
-													</SourcesContent>
-												</Sources>
-											)}
-											{message.reasoning && (
-												<Reasoning duration={message.reasoning.duration}>
-													<ReasoningTrigger />
-													<ReasoningContent>
-														{message.reasoning.content}
-													</ReasoningContent>
-												</Reasoning>
-											)}
+										<Message align={isUser ? "end" : "start"}>
 											<MessageContent>
-												<MessageResponse>{version.content}</MessageResponse>
+												{message.sources?.length ? (
+													<Sources>
+														<SourcesTrigger count={message.sources.length} />
+														<SourcesContent>
+															{message.sources.map((source) => (
+																<Source
+																	href={source.href}
+																	key={source.href}
+																	title={source.title}
+																/>
+															))}
+														</SourcesContent>
+													</Sources>
+												) : null}
+												{message.reasoning ? (
+													<Reasoning duration={message.reasoning.duration}>
+														<ReasoningTrigger />
+														<ReasoningContent>
+															{message.reasoning.content}
+														</ReasoningContent>
+													</Reasoning>
+												) : null}
+												<Bubble
+													align={isUser ? "end" : "start"}
+													variant={isUser ? "default" : "ghost"}
+												>
+													<BubbleContent>
+														{isUser ? (
+															content
+														) : (
+															<MarkdownRenderer>{content}</MarkdownRenderer>
+														)}
+													</BubbleContent>
+												</Bubble>
 											</MessageContent>
-										</div>
-									</Message>
-								))}
-							</MessageBranchContent>
-							{versions.length > 1 && (
-								<MessageBranchSelector>
-									<MessageBranchPrevious />
-									<MessageBranchPage />
-									<MessageBranchNext />
-								</MessageBranchSelector>
-							)}
-						</MessageBranch>
-					))}
-				</ConversationContent>
-				<ConversationScrollButton />
-			</Conversation>
+										</Message>
+									</MessageScrollerItem>
+								);
+							})}
+						</MessageScrollerContent>
+					</MessageScrollerViewport>
+					<MessageScrollerButton />
+				</MessageScroller>
+			</MessageScrollerProvider>
 			<div className="grid shrink-0 gap-4 pt-4">
 				<Suggestions className="px-4">
 					{suggestions.map((suggestion) => (
@@ -680,19 +684,17 @@ const Example = () => {
 									onOpenChange={setModelSelectorOpen}
 									open={modelSelectorOpen}
 								>
-									<ModelSelectorTrigger asChild>
-										<PromptInputButton>
-											{selectedModelData?.chefSlug && (
-												<ModelSelectorLogo
-													provider={selectedModelData.chefSlug}
-												/>
-											)}
-											{selectedModelData?.name && (
-												<ModelSelectorName>
-													{selectedModelData.name}
-												</ModelSelectorName>
-											)}
-										</PromptInputButton>
+									<ModelSelectorTrigger render={<PromptInputButton />}>
+										{selectedModelData?.chefSlug && (
+											<ModelSelectorLogo
+												provider={selectedModelData.chefSlug}
+											/>
+										)}
+										{selectedModelData?.name && (
+											<ModelSelectorName>
+												{selectedModelData.name}
+											</ModelSelectorName>
+										)}
 									</ModelSelectorTrigger>
 									<ModelSelectorContent>
 										<ModelSelectorInput placeholder="Search models..." />

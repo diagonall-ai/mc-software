@@ -1,5 +1,9 @@
 "use client";
 
+import { mergeProps } from "@base-ui/react/merge-props";
+import { Slider as SliderPrimitive } from "@base-ui/react/slider";
+import { useRender } from "@base-ui/react/use-render";
+import { cn } from "cn";
 import {
 	AlertTriangleIcon,
 	CaptionsOffIcon,
@@ -32,15 +36,11 @@ import {
 	useMediaRef,
 	useMediaSelector,
 } from "media-chrome/react/media-store";
-import {
-	Direction as DirectionPrimitive,
-	Slider as SliderPrimitive,
-	Slot as SlotPrimitive,
-} from "radix-ui";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { useDirection } from "~/components/ui/direction";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -54,11 +54,11 @@ import {
 import {
 	Tooltip,
 	TooltipContent,
+	TooltipProvider,
 	TooltipTrigger,
 } from "~/components/ui/tooltip";
 import { useLazyRef } from "~/hooks/use-lazy-ref";
 import { useComposedRefs } from "~/lib/compose-refs";
-import { cn } from "~/lib/utils";
 
 const ROOT_NAME = "MediaPlayer";
 const SEEK_NAME = "MediaPlayerSeek";
@@ -68,6 +68,10 @@ const PLAYBACK_SPEED_NAME = "MediaPlayerPlaybackSpeed";
 
 const FLOATING_MENU_SIDE_OFFSET = 10;
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
+type ButtonClickHandler = NonNullable<
+	React.ComponentProps<typeof Button>["onClick"]
+>;
 
 const SEEK_STEP_SHORT = 5;
 const SEEK_STEP_LONG = 10;
@@ -81,11 +85,11 @@ const SEEK_TOOLTIP_Y = "--seek-tooltip-y";
 const SPRITE_CONTAINER_WIDTH = 224;
 const SPRITE_CONTAINER_HEIGHT = 128;
 
-interface DivProps extends React.ComponentProps<"div"> {
-	asChild?: boolean;
-}
+interface DivProps
+	extends React.ComponentProps<"div">,
+		useRender.ComponentProps<"div"> {}
 
-type RootElement = React.ComponentRef<typeof MediaPlayer>;
+type RootElement = HTMLDivElement;
 
 type Direction = "ltr" | "rtl";
 
@@ -134,8 +138,8 @@ interface MediaPlayerContextValue {
 	dir: Direction;
 	rootRef: React.RefObject<RootElement | null>;
 	mediaRef: React.RefObject<HTMLVideoElement | HTMLAudioElement | null>;
-	portalContainer: Element | DocumentFragment | null;
-	tooltipDelayDuration: number;
+	portalContainer: HTMLElement | ShadowRoot | null;
+	tooltipDelay: number;
 	tooltipSideOffset: number;
 	disabled: boolean;
 	isVideo: boolean;
@@ -167,7 +171,7 @@ interface MediaPlayerProps
 	onFullscreenChange?: (fullscreen: boolean) => void;
 	dir?: Direction;
 	label?: string;
-	tooltipDelayDuration?: number;
+	tooltipDelay?: number;
 	tooltipSideOffset?: number;
 	autoHide?: boolean;
 	disabled?: boolean;
@@ -225,9 +229,9 @@ function MediaPlayerImpl(props: MediaPlayerProps) {
 		onPipError,
 		dir: dirProp,
 		label,
-		tooltipDelayDuration = 600,
+		tooltipDelay = 600,
 		tooltipSideOffset = FLOATING_MENU_SIDE_OFFSET,
-		asChild,
+		render,
 		autoHide = false,
 		disabled = false,
 		withoutTooltip = false,
@@ -245,7 +249,8 @@ function MediaPlayerImpl(props: MediaPlayerProps) {
 	const fullscreenRef = useMediaFullscreenRef();
 	const composedRef = useComposedRefs(ref, rootRef, fullscreenRef);
 
-	const dir = DirectionPrimitive.useDirection(dirProp);
+	const contextDir = useDirection();
+	const dir = dirProp ?? contextDir;
 	const dispatch = useMediaDispatch();
 	const mediaRef = React.useRef<HTMLVideoElement | HTMLAudioElement | null>(
 		null,
@@ -713,7 +718,7 @@ function MediaPlayerImpl(props: MediaPlayerProps) {
 			rootRef,
 			mediaRef,
 			portalContainer,
-			tooltipDelayDuration,
+			tooltipDelay,
 			tooltipSideOffset,
 			disabled,
 			isVideo,
@@ -725,7 +730,7 @@ function MediaPlayerImpl(props: MediaPlayerProps) {
 			descriptionId,
 			dir,
 			portalContainer,
-			tooltipDelayDuration,
+			tooltipDelay,
 			tooltipSideOffset,
 			disabled,
 			isVideo,
@@ -733,59 +738,69 @@ function MediaPlayerImpl(props: MediaPlayerProps) {
 		],
 	);
 
-	const RootPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
 	return (
 		<MediaPlayerContext.Provider value={contextValue}>
-			<RootPrimitive
-				aria-labelledby={labelId}
-				aria-describedby={descriptionId}
-				aria-disabled={disabled}
-				data-disabled={disabled ? "" : undefined}
-				data-controls-visible={controlsVisible ? "" : undefined}
-				data-slot="media-player"
-				data-state={isFullscreen ? "fullscreen" : "windowed"}
-				dir={dir}
-				tabIndex={disabled ? undefined : 0}
-				{...rootImplProps}
-				ref={composedRef}
-				onMouseLeave={onMouseLeave}
-				onMouseMove={onMouseMove}
-				onKeyDown={onKeyDown}
-				onKeyUp={onKeyUp}
-				className={cn(
-					"dark relative isolate flex flex-col overflow-hidden rounded-lg bg-background outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-disabled:pointer-events-none data-disabled:opacity-50 [&_video]:relative [&_video]:object-contain",
-					"in-[:fullscreen]:flex in-[:fullscreen]:h-full in-[:fullscreen]:max-h-screen in-[:fullscreen]:flex-col in-[:fullscreen]:justify-between data-[state=fullscreen]:[&_video]:size-full",
-					"**:data-slider:relative [&_[data-slider]::before]:absolute [&_[data-slider]::before]:inset-x-0 [&_[data-slider]::before]:-top-4 [&_[data-slider]::before]:-bottom-2 [&_[data-slider]::before]:z-10 [&_[data-slider]::before]:h-8 [&_[data-slider]::before]:cursor-pointer [&_[data-slider]::before]:content-[''] [&_[data-slot='media-player-seek']:not([data-hovering])::before]:cursor-default",
-					"[&_video::-webkit-media-text-track-display]:top-auto! [&_video::-webkit-media-text-track-display]:bottom-[4%]! [&_video::-webkit-media-text-track-display]:mb-0! data-[state=fullscreen]:data-controls-visible:[&_video::-webkit-media-text-track-display]:bottom-[9%]! data-[state=fullscreen]:[&_video::-webkit-media-text-track-display]:bottom-[7%]! data-controls-visible:[&_video::-webkit-media-text-track-display]:bottom-[13%]!",
-					className,
-				)}
-			>
-				<span id={labelId} className="sr-only">
-					{label ?? "Media player"}
-				</span>
-				<span id={descriptionId} className="sr-only">
-					{isVideo
-						? "Video player with custom controls for playback, volume, seeking, and more. Use space bar to play/pause, arrow keys (←/→) to seek, and arrow keys (↑/↓) to adjust volume."
-						: "Audio player with custom controls for playback, volume, seeking, and more. Use space bar to play/pause, Shift + arrow keys (←/→) to seek, and arrow keys (↑/↓) to adjust volume."}
-				</span>
-				{children}
-				<MediaPlayerVolumeIndicator />
-			</RootPrimitive>
+			{useRender({
+				defaultTagName: "div",
+				props: mergeProps<"div">(
+					{
+						"aria-labelledby": labelId,
+						"aria-describedby": descriptionId,
+						"aria-disabled": disabled,
+						dir,
+						tabIndex: disabled ? undefined : 0,
+						ref: composedRef,
+						onMouseLeave,
+						onMouseMove,
+						onKeyDown,
+						onKeyUp,
+						className: cn(
+							"dark relative isolate flex size-full flex-col overflow-hidden rounded-lg bg-background outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-disabled:pointer-events-none data-disabled:opacity-50 [&_video]:relative [&_video]:object-contain",
+							"in-[:fullscreen]:flex in-[:fullscreen]:h-full in-[:fullscreen]:max-h-screen in-[:fullscreen]:flex-col in-[:fullscreen]:justify-between data-[state=fullscreen]:[&_video]:size-full",
+							"**:data-slider:relative [&_[data-slider]::before]:absolute [&_[data-slider]::before]:inset-x-0 [&_[data-slider]::before]:-top-4 [&_[data-slider]::before]:-bottom-2 [&_[data-slider]::before]:z-10 [&_[data-slider]::before]:h-8 [&_[data-slider]::before]:cursor-pointer [&_[data-slider]::before]:content-[''] [&_[data-slot='media-player-seek']:not([data-hovering])::before]:cursor-default",
+							"[&_video::-webkit-media-text-track-display]:top-auto! [&_video::-webkit-media-text-track-display]:bottom-[4%]! [&_video::-webkit-media-text-track-display]:mb-0! data-controls-visible:[&_video::-webkit-media-text-track-display]:bottom-[13%]! data-[state=fullscreen]:[&_video::-webkit-media-text-track-display]:bottom-[7%]! data-[state=fullscreen]:data-controls-visible:[&_video::-webkit-media-text-track-display]:bottom-[9%]!",
+							className,
+						),
+						children: (
+							<>
+								<span id={labelId} className="sr-only">
+									{label ?? "Media player"}
+								</span>
+								<span id={descriptionId} className="sr-only">
+									{isVideo
+										? "Video player with custom controls for playback, volume, seeking, and more. Use space bar to play/pause, arrow keys (←/→) to seek, and arrow keys (↑/↓) to adjust volume."
+										: "Audio player with custom controls for playback, volume, seeking, and more. Use space bar to play/pause, Shift + arrow keys (←/→) to seek, and arrow keys (↑/↓) to adjust volume."}
+								</span>
+								{children}
+								<MediaPlayerVolumeIndicator />
+							</>
+						),
+					},
+					rootImplProps,
+				),
+				render,
+				state: {
+					slot: "media-player",
+					state: isFullscreen ? "fullscreen" : "windowed",
+					disabled: disabled || undefined,
+					"controls-visible": controlsVisible || undefined,
+				},
+			})}
 		</MediaPlayerContext.Provider>
 	);
 }
 
-interface MediaPlayerVideoProps extends React.ComponentProps<"video"> {
-	asChild?: boolean;
-}
+interface MediaPlayerVideoProps
+	extends React.ComponentProps<"video">,
+		useRender.ComponentProps<"video"> {}
 
 function MediaPlayerVideo(props: MediaPlayerVideoProps) {
-	const { asChild, ref, ...videoProps } = props;
+	const { render, ref, ...videoProps } = props;
 
 	const context = useMediaPlayerContext("MediaPlayerVideo");
 	const dispatch = useMediaDispatch();
-	const mediaRefCallback = useMediaRef();
+	const mediaRefCallback =
+		useMediaRef() as React.RefCallback<HTMLVideoElement | null>;
 	const composedRef = useComposedRefs(ref, context.mediaRef, mediaRefCallback);
 
 	const onPlayToggle = React.useCallback(
@@ -806,48 +821,53 @@ function MediaPlayerVideo(props: MediaPlayerVideoProps) {
 		[dispatch, props.onClick],
 	);
 
-	const VideoPrimitive = asChild ? SlotPrimitive.Slot : "video";
-
-	return (
-		<VideoPrimitive
-			aria-describedby={context.descriptionId}
-			aria-labelledby={context.labelId}
-			data-slot="media-player-video"
-			{...videoProps}
-			id={context.mediaId}
-			ref={composedRef}
-			onClick={onPlayToggle}
-		/>
-	);
+	return useRender({
+		defaultTagName: "video",
+		props: mergeProps<"video">(
+			{
+				"aria-describedby": context.descriptionId,
+				"aria-labelledby": context.labelId,
+				id: context.mediaId,
+				ref: composedRef,
+				onClick: onPlayToggle,
+			},
+			videoProps,
+		),
+		render,
+		state: { slot: "media-player-video" },
+	});
 }
 
-interface MediaPlayerAudioProps extends React.ComponentProps<"audio"> {
-	asChild?: boolean;
-}
+interface MediaPlayerAudioProps
+	extends React.ComponentProps<"audio">,
+		useRender.ComponentProps<"audio"> {}
 
 function MediaPlayerAudio(props: MediaPlayerAudioProps) {
-	const { asChild, ref, ...audioProps } = props;
+	const { render, ref, ...audioProps } = props;
 
 	const context = useMediaPlayerContext("MediaPlayerAudio");
-	const mediaRefCallback = useMediaRef();
+	const mediaRefCallback =
+		useMediaRef() as React.RefCallback<HTMLAudioElement | null>;
 	const composedRef = useComposedRefs(ref, context.mediaRef, mediaRefCallback);
 
-	const AudioPrimitive = asChild ? SlotPrimitive.Slot : "audio";
-
-	return (
-		<AudioPrimitive
-			aria-describedby={context.descriptionId}
-			aria-labelledby={context.labelId}
-			data-slot="media-player-audio"
-			{...audioProps}
-			id={context.mediaId}
-			ref={composedRef}
-		/>
-	);
+	return useRender({
+		defaultTagName: "audio",
+		props: mergeProps<"audio">(
+			{
+				"aria-describedby": context.descriptionId,
+				"aria-labelledby": context.labelId,
+				id: context.mediaId,
+				ref: composedRef,
+			},
+			audioProps,
+		),
+		render,
+		state: { slot: "media-player-audio" },
+	});
 }
 
 function MediaPlayerControls(props: DivProps) {
-	const { asChild, className, ...controlsProps } = props;
+	const { render, className, ...controlsProps } = props;
 
 	const context = useMediaPlayerContext("MediaPlayerControls");
 	const isFullscreen = useMediaSelector(
@@ -855,22 +875,26 @@ function MediaPlayerControls(props: DivProps) {
 	);
 	const controlsVisible = useStore((state) => state.controlsVisible);
 
-	const ControlsPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<ControlsPrimitive
-			data-disabled={context.disabled ? "" : undefined}
-			data-slot="media-player-controls"
-			data-state={isFullscreen ? "fullscreen" : "windowed"}
-			data-visible={controlsVisible ? "" : undefined}
-			dir={context.dir}
-			className={cn(
-				"dark pointer-events-none absolute right-0 bottom-0 left-0 z-50 flex items-center gap-2 in-[:fullscreen]:px-6 px-4 in-[:fullscreen]:py-4 py-3 opacity-0 transition-opacity duration-200 data-visible:pointer-events-auto data-visible:opacity-100",
-				className,
-			)}
-			{...controlsProps}
-		/>
-	);
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				dir: context.dir,
+				className: cn(
+					"dark pointer-events-none absolute right-0 bottom-0 left-0 z-50 flex items-center gap-2 px-4 py-3 opacity-0 transition-opacity duration-200 in-[:fullscreen]:px-6 in-[:fullscreen]:py-4 data-visible:pointer-events-auto data-visible:opacity-100",
+					className,
+				),
+			},
+			controlsProps,
+		),
+		render,
+		state: {
+			slot: "media-player-controls",
+			state: isFullscreen ? "fullscreen" : "windowed",
+			disabled: context.disabled || undefined,
+			visible: controlsVisible || undefined,
+		},
+	});
 }
 
 interface MediaPlayerLoadingProps extends DivProps {
@@ -878,13 +902,7 @@ interface MediaPlayerLoadingProps extends DivProps {
 }
 
 function MediaPlayerLoading(props: MediaPlayerLoadingProps) {
-	const {
-		delayMs = 500,
-		asChild,
-		className,
-		children,
-		...loadingProps
-	} = props;
+	const { delayMs = 500, render, className, children, ...loadingProps } = props;
 
 	const isLoading = useMediaSelector((state) => state.mediaLoading ?? false);
 	const isPaused = useMediaSelector((state) => state.mediaPaused ?? true);
@@ -924,25 +942,29 @@ function MediaPlayerLoading(props: MediaPlayerLoadingProps) {
 		};
 	}, [shouldShowLoading, loadingDelayMs]);
 
+	const rendered = useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				role: "status",
+				"aria-live": "polite" as const,
+				className: cn(
+					"pointer-events-none absolute inset-0 z-50 flex animate-in items-center justify-center duration-200 fade-in-0 zoom-in-95",
+					className,
+				),
+				children: children ?? (
+					<Loader2Icon className="size-20 animate-spin stroke-[.0938rem] text-primary" />
+				),
+			},
+			loadingProps,
+		),
+		render,
+		state: { slot: "media-player-loading" },
+	});
+
 	if (!shouldRender) return null;
 
-	const LoadingPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<LoadingPrimitive
-			aria-live="polite"
-			data-slot="media-player-loading"
-			{...loadingProps}
-			className={cn(
-				"fade-in-0 zoom-in-95 pointer-events-none absolute inset-0 z-50 flex animate-in items-center justify-center duration-200",
-				className,
-			)}
-		>
-			{children ?? (
-				<Loader2Icon className="size-20 animate-spin stroke-[.0938rem] text-primary" />
-			)}
-		</LoadingPrimitive>
-	);
+	return rendered;
 }
 
 interface MediaPlayerErrorProps extends DivProps {
@@ -951,7 +973,6 @@ interface MediaPlayerErrorProps extends DivProps {
 	description?: string;
 	onRetry?: () => void;
 	onReload?: () => void;
-	asChild?: boolean;
 }
 
 function MediaPlayerError(props: MediaPlayerErrorProps) {
@@ -961,7 +982,7 @@ function MediaPlayerError(props: MediaPlayerErrorProps) {
 		description,
 		onRetry: onRetryProp,
 		onReload: onReloadProp,
-		asChild,
+		render,
 		className,
 		children,
 		...errorProps
@@ -1054,71 +1075,76 @@ function MediaPlayerError(props: MediaPlayerErrorProps) {
 		return descriptionMap[error.code] ?? "An unknown error occurred";
 	}, [description, error]);
 
+	const rendered = useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				role: "alert",
+				"aria-describedby": descriptionId,
+				"aria-labelledby": labelId,
+				"aria-live": "assertive" as const,
+				className: cn(
+					"pointer-events-auto absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 text-white backdrop-blur-sm",
+					className,
+				),
+				children: children ?? (
+					<div className="flex max-w-md flex-col items-center gap-4 px-6 py-8 text-center">
+						<AlertTriangleIcon className="size-12 text-destructive" />
+						<div className="flex flex-col gap-px text-center">
+							<h3 className="text-xl font-semibold tracking-tight">
+								{errorLabel}
+							</h3>
+							<p className="text-sm leading-relaxed text-balance text-muted-foreground">
+								{errorDescription}
+							</p>
+						</div>
+						<div className="flex items-center gap-2">
+							<Button
+								variant="secondary"
+								size="sm"
+								onClick={onRetry}
+								disabled={actionState.retryPending}
+							>
+								{actionState.retryPending ? (
+									<Loader2Icon className="animate-spin" />
+								) : (
+									<RefreshCcwIcon />
+								)}
+								Try again
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onReload}
+								disabled={actionState.reloadPending}
+							>
+								{actionState.reloadPending ? (
+									<Loader2Icon className="animate-spin" />
+								) : (
+									<RotateCcwIcon />
+								)}
+								Reload page
+							</Button>
+						</div>
+					</div>
+				),
+			},
+			errorProps,
+		),
+		render,
+		state: {
+			slot: "media-player-error",
+			state: isFullscreen ? "fullscreen" : "windowed",
+		},
+	});
+
 	if (!error) return null;
 
-	const ErrorPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<ErrorPrimitive
-			role="alert"
-			aria-describedby={descriptionId}
-			aria-labelledby={labelId}
-			aria-live="assertive"
-			data-slot="media-player-error"
-			data-state={isFullscreen ? "fullscreen" : "windowed"}
-			{...errorProps}
-			className={cn(
-				"pointer-events-auto absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 text-white backdrop-blur-sm",
-				className,
-			)}
-		>
-			{children ?? (
-				<div className="flex max-w-md flex-col items-center gap-4 px-6 py-8 text-center">
-					<AlertTriangleIcon className="size-12 text-destructive" />
-					<div className="flex flex-col gap-px text-center">
-						<h3 className="font-semibold text-xl tracking-tight">
-							{errorLabel}
-						</h3>
-						<p className="text-balance text-muted-foreground text-sm leading-relaxed">
-							{errorDescription}
-						</p>
-					</div>
-					<div className="flex items-center gap-2">
-						<Button
-							variant="secondary"
-							size="sm"
-							onClick={onRetry}
-							disabled={actionState.retryPending}
-						>
-							{actionState.retryPending ? (
-								<Loader2Icon className="animate-spin" />
-							) : (
-								<RefreshCcwIcon />
-							)}
-							Try again
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={onReload}
-							disabled={actionState.reloadPending}
-						>
-							{actionState.reloadPending ? (
-								<Loader2Icon className="animate-spin" />
-							) : (
-								<RotateCcwIcon />
-							)}
-							Reload page
-						</Button>
-					</div>
-				</div>
-			)}
-		</ErrorPrimitive>
-	);
+	return rendered;
 }
 
 function MediaPlayerVolumeIndicator(props: DivProps) {
-	const { asChild, className, ...indicatorProps } = props;
+	const { render, className, ...indicatorProps } = props;
 
 	const mediaVolume = useMediaSelector((state) => state.mediaVolume ?? 1);
 	const mediaMuted = useMediaSelector((state) => state.mediaMuted ?? false);
@@ -1129,83 +1155,93 @@ function MediaPlayerVolumeIndicator(props: DivProps) {
 		(state) => state.volumeIndicatorVisible,
 	);
 
-	if (!volumeIndicatorVisible) return null;
-
 	const effectiveVolume = mediaMuted ? 0 : mediaVolume;
 	const volumePercentage = Math.round(effectiveVolume * 100);
 	const barCount = 10;
 	const activeBarCount = Math.ceil(effectiveVolume * barCount);
 
-	const VolumeIndicatorPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<VolumeIndicatorPrimitive
-			aria-live="polite"
-			aria-label={`Volume ${mediaMuted ? "muted" : `${volumePercentage}%`}`}
-			data-slot="media-player-volume-indicator"
-			{...indicatorProps}
-			className={cn(
-				"pointer-events-none absolute inset-0 z-50 flex items-center justify-center",
-				className,
-			)}
-		>
-			<div className="fade-in-0 zoom-in-95 flex animate-in flex-col items-center gap-3 rounded-lg bg-black/30 px-6 py-4 text-white backdrop-blur-xs duration-200">
-				<div className="flex items-center gap-2">
-					{mediaVolumeLevel === "off" || mediaMuted ? (
-						<VolumeXIcon className="size-6" />
-					) : mediaVolumeLevel === "high" ? (
-						<Volume2Icon className="size-6" />
-					) : (
-						<Volume1Icon className="size-6" />
-					)}
-					<span className="font-medium text-sm tabular-nums">
-						{mediaMuted ? "Muted" : `${volumePercentage}%`}
-					</span>
-				</div>
-				<div className="flex items-center gap-1">
-					{Array.from({ length: barCount }, (_, index) => (
-						<div
-							key={`volume-bar-${index + 1}`}
-							className={cn(
-								"w-1.5 rounded-full transition-all duration-150",
-								index < activeBarCount && !mediaMuted
-									? "scale-100 bg-white"
-									: "scale-90 bg-white/30",
+	const rendered = useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				role: "status",
+				"aria-live": "polite" as const,
+				"aria-label": `Volume ${mediaMuted ? "muted" : `${volumePercentage}%`}`,
+				className: cn(
+					"pointer-events-none absolute inset-0 z-50 flex items-center justify-center",
+					className,
+				),
+				children: (
+					<div className="flex animate-in flex-col items-center gap-3 rounded-lg bg-black/30 px-6 py-4 text-white backdrop-blur-xs duration-200 fade-in-0 zoom-in-95">
+						<div className="flex items-center gap-2">
+							{mediaVolumeLevel === "off" || mediaMuted ? (
+								<VolumeXIcon className="size-6" />
+							) : mediaVolumeLevel === "high" ? (
+								<Volume2Icon className="size-6" />
+							) : (
+								<Volume1Icon className="size-6" />
 							)}
-							style={{
-								height: `${12 + index * 2}px`,
-								animationDelay: `${index * 50}ms`,
-							}}
-						/>
-					))}
-				</div>
-			</div>
-		</VolumeIndicatorPrimitive>
-	);
+							<span className="text-sm font-medium tabular-nums">
+								{mediaMuted ? "Muted" : `${volumePercentage}%`}
+							</span>
+						</div>
+						<div className="flex items-center gap-1">
+							{Array.from({ length: barCount }, (_, index) => (
+								<div
+									key={index}
+									className={cn(
+										"w-1.5 rounded-full transition-all duration-150",
+										index < activeBarCount && !mediaMuted
+											? "scale-100 bg-white"
+											: "scale-90 bg-white/30",
+									)}
+									style={{
+										height: `${12 + index * 2}px`,
+										animationDelay: `${index * 50}ms`,
+									}}
+								/>
+							))}
+						</div>
+					</div>
+				),
+			},
+			indicatorProps,
+		),
+		render,
+		state: { slot: "media-player-volume-indicator" },
+	});
+
+	if (!volumeIndicatorVisible) return null;
+
+	return rendered;
 }
 
 function MediaPlayerControlsOverlay(props: DivProps) {
-	const { asChild, className, ...overlayProps } = props;
+	const { render, className, ...overlayProps } = props;
 
 	const isFullscreen = useMediaSelector(
 		(state) => state.mediaIsFullscreen ?? false,
 	);
 	const controlsVisible = useStore((state) => state.controlsVisible);
 
-	const OverlayPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<OverlayPrimitive
-			data-slot="media-player-controls-overlay"
-			data-state={isFullscreen ? "fullscreen" : "windowed"}
-			data-visible={controlsVisible ? "" : undefined}
-			{...overlayProps}
-			className={cn(
-				"pointer-events-none absolute inset-0 -z-10 bg-linear-to-t from-black/80 to-transparent opacity-0 transition-opacity duration-200 data-visible:opacity-100",
-				className,
-			)}
-		/>
-	);
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				className: cn(
+					"pointer-events-none absolute inset-0 -z-10 bg-linear-to-t from-black/80 to-transparent opacity-0 transition-opacity duration-200 data-visible:opacity-100",
+					className,
+				),
+			},
+			overlayProps,
+		),
+		render,
+		state: {
+			slot: "media-player-controls-overlay",
+			state: isFullscreen ? "fullscreen" : "windowed",
+			visible: controlsVisible || undefined,
+		},
+	});
 }
 
 function MediaPlayerPlay(props: React.ComponentProps<typeof Button>) {
@@ -1217,8 +1253,8 @@ function MediaPlayerPlay(props: React.ComponentProps<typeof Button>) {
 
 	const isDisabled = disabled || context.disabled;
 
-	const onPlayToggle = React.useCallback(
-		(event: React.MouseEvent<HTMLButtonElement>) => {
+	const onPlayToggle = React.useCallback<ButtonClickHandler>(
+		(event) => {
 			props.onClick?.(event);
 
 			if (event.defaultPrevented) return;
@@ -1283,8 +1319,8 @@ function MediaPlayerSeekBackward(props: MediaPlayerSeekBackwardProps) {
 
 	const isDisabled = disabled || context.disabled;
 
-	const onSeekBackward = React.useCallback(
-		(event: React.MouseEvent<HTMLButtonElement>) => {
+	const onSeekBackward = React.useCallback<ButtonClickHandler>(
+		(event) => {
 			props.onClick?.(event);
 
 			if (event.defaultPrevented) return;
@@ -1345,8 +1381,8 @@ function MediaPlayerSeekForward(props: MediaPlayerSeekForwardProps) {
 	);
 	const isDisabled = disabled || context.disabled;
 
-	const onSeekForward = React.useCallback(
-		(event: React.MouseEvent<HTMLButtonElement>) => {
+	const onSeekForward = React.useCallback<ButtonClickHandler>(
+		(event) => {
 			props.onClick?.(event);
 
 			if (event.defaultPrevented) return;
@@ -1392,8 +1428,7 @@ interface SeekState {
 	hasInitialPosition: boolean;
 }
 
-interface MediaPlayerSeekProps
-	extends React.ComponentProps<typeof SliderPrimitive.Root> {
+interface MediaPlayerSeekProps extends SliderPrimitive.Root.Props {
 	withTime?: boolean;
 	withoutChapter?: boolean;
 	withoutTooltip?: boolean;
@@ -1875,8 +1910,8 @@ function MediaPlayerSeek(props: MediaPlayerSeekProps) {
 	);
 
 	const onSeek = React.useCallback(
-		(value: number[]) => {
-			const time = value[0] ?? 0;
+		(value: number | readonly number[]) => {
+			const time = (Array.isArray(value) ? value[0] : value) ?? 0;
 
 			setSeekState((prev) => ({ ...prev, pendingSeekTime: time }));
 
@@ -1900,8 +1935,8 @@ function MediaPlayerSeek(props: MediaPlayerSeekProps) {
 	);
 
 	const onSeekCommit = React.useCallback(
-		(value: number[]) => {
-			const time = value[0] ?? 0;
+		(value: number | readonly number[]) => {
+			const time = (Array.isArray(value) ? value[0] : value) ?? 0;
 
 			if (seekThrottleRef.current) {
 				cancelAnimationFrame(seekThrottleRef.current);
@@ -2042,38 +2077,40 @@ function MediaPlayerSeek(props: MediaPlayerSeekProps) {
 				max={seekableEnd}
 				step={0.01}
 				className={cn(
-					"relative flex w-full touch-none select-none items-center data-disabled:pointer-events-none data-disabled:opacity-50",
+					"relative flex w-full touch-none items-center select-none data-disabled:pointer-events-none data-disabled:opacity-50",
 					className,
 				)}
 				value={[displayValue]}
 				onValueChange={onSeek}
-				onValueCommit={onSeekCommit}
+				onValueCommitted={onSeekCommit}
 				onPointerEnter={onPointerEnter}
 				onPointerLeave={onPointerLeave}
 				onPointerMove={onPointerMove}
 			>
-				<SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-primary/40">
-					<div
-						data-slot="media-player-seek-buffered"
-						className="absolute h-full bg-primary/70 will-change-[width]"
-						style={{
-							width: `${bufferedProgress * 100}%`,
-						}}
-					/>
-					<SliderPrimitive.Range className="absolute h-full bg-primary will-change-[width]" />
-					{seekState.isHovering && seekableEnd > 0 && (
+				<SliderPrimitive.Control className="relative flex w-full items-center">
+					<SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-primary/40">
 						<div
-							data-slot="media-player-seek-hover-range"
-							className="absolute h-full bg-primary/70 will-change-[width,opacity]"
+							data-slot="media-player-seek-buffered"
+							className="absolute h-full bg-primary/70 will-change-[width]"
 							style={{
-								width: `var(${SEEK_HOVER_PERCENT}, 0%)`,
-								transition: "opacity 150ms ease-out",
+								width: `${bufferedProgress * 100}%`,
 							}}
 						/>
-					)}
-					{chapterSeparators}
-				</SliderPrimitive.Track>
-				<SliderPrimitive.Thumb className="relative z-10 block size-2.5 shrink-0 rounded-full bg-primary shadow-sm ring-ring/50 transition-[color,box-shadow] will-change-transform hover:ring-4 focus-visible:outline-hidden focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-50" />
+						<SliderPrimitive.Indicator className="absolute h-full bg-primary will-change-[width]" />
+						{seekState.isHovering && seekableEnd > 0 && (
+							<div
+								data-slot="media-player-seek-hover-range"
+								className="absolute h-full bg-primary/70 will-change-[width,opacity]"
+								style={{
+									width: `var(${SEEK_HOVER_PERCENT}, 0%)`,
+									transition: "opacity 150ms ease-out",
+								}}
+							/>
+						)}
+						{chapterSeparators}
+					</SliderPrimitive.Track>
+					<SliderPrimitive.Thumb className="relative z-10 block size-2.5 shrink-0 rounded-full bg-primary shadow-sm ring-ring/50 transition-[color,box-shadow] will-change-transform hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50" />
+				</SliderPrimitive.Control>
 			</SliderPrimitive.Root>
 			{!withoutTooltip &&
 				!context.withoutTooltip &&
@@ -2082,7 +2119,7 @@ function MediaPlayerSeek(props: MediaPlayerSeekProps) {
 					<MediaPlayerPortal>
 						<div
 							ref={tooltipRef}
-							className="backface-hidden contain-[layout_style] pointer-events-none z-50 [transition:opacity_150ms_ease-in-out]"
+							className="pointer-events-none z-50 contain-[layout_style] [transition:opacity_150ms_ease-in-out] backface-hidden"
 							style={{
 								position: "fixed" as const,
 								left: `var(${SEEK_TOOLTIP_X}, 0rem)`,
@@ -2122,7 +2159,7 @@ function MediaPlayerSeek(props: MediaPlayerSeekProps) {
 								{currentChapterCue && (
 									<div
 										data-slot="media-player-seek-chapter-title"
-										className="line-clamp-2 max-w-48 text-balance text-center text-xs"
+										className="line-clamp-2 max-w-48 text-center text-xs text-balance"
 									>
 										{currentChapterCue.text}
 									</div>
@@ -2130,7 +2167,7 @@ function MediaPlayerSeek(props: MediaPlayerSeekProps) {
 								<div
 									data-slot="media-player-seek-time"
 									className={cn(
-										"whitespace-nowrap text-center text-xs tabular-nums",
+										"text-center text-xs whitespace-nowrap tabular-nums",
 										thumbnail && "pb-1.5",
 										!(thumbnail || currentChapterCue) && "px-2.5 py-1",
 									)}
@@ -2159,9 +2196,7 @@ function MediaPlayerSeek(props: MediaPlayerSeekProps) {
 	return SeekSlider;
 }
 
-interface MediaPlayerVolumeProps
-	extends React.ComponentProps<typeof SliderPrimitive.Root> {
-	asChild?: boolean;
+interface MediaPlayerVolumeProps extends SliderPrimitive.Root.Props {
 	expandable?: boolean;
 }
 
@@ -2191,8 +2226,8 @@ function MediaPlayerVolume(props: MediaPlayerVolumeProps) {
 	}, [dispatch, mediaMuted]);
 
 	const onVolumeChange = React.useCallback(
-		(value: number[]) => {
-			const volume = value[0] ?? 0;
+		(value: number | readonly number[]) => {
+			const volume = (Array.isArray(value) ? value[0] : value) ?? 0;
 
 			if (!store.getState().dragging) {
 				store.setState("dragging", true);
@@ -2207,8 +2242,8 @@ function MediaPlayerVolume(props: MediaPlayerVolumeProps) {
 	);
 
 	const onVolumeCommit = React.useCallback(
-		(value: number[]) => {
-			const volume = value[0] ?? 0;
+		(value: number | readonly number[]) => {
+			const volume = (Array.isArray(value) ? value[0] : value) ?? 0;
 
 			if (store.getState().dragging) {
 				store.setState("dragging", false);
@@ -2271,7 +2306,7 @@ function MediaPlayerVolume(props: MediaPlayerVolumeProps) {
 				max={1}
 				step={0.1}
 				className={cn(
-					"relative flex touch-none select-none items-center",
+					"relative flex touch-none items-center select-none",
 					expandable
 						? "w-0 opacity-0 transition-[width,opacity] duration-200 ease-in-out group-focus-within:w-16 group-focus-within:opacity-100 group-hover:w-16 group-hover:opacity-100"
 						: "w-16",
@@ -2280,24 +2315,27 @@ function MediaPlayerVolume(props: MediaPlayerVolumeProps) {
 				disabled={isDisabled}
 				value={[effectiveVolume]}
 				onValueChange={onVolumeChange}
-				onValueCommit={onVolumeCommit}
+				onValueCommitted={onVolumeCommit}
 			>
-				<SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-zinc-500">
-					<SliderPrimitive.Range className="absolute h-full bg-primary will-change-[width]" />
-				</SliderPrimitive.Track>
-				<SliderPrimitive.Thumb className="block size-2.5 shrink-0 rounded-full bg-primary shadow-sm ring-ring/50 transition-[color,box-shadow] will-change-transform hover:ring-4 focus-visible:outline-hidden focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-50" />
+				<SliderPrimitive.Control className="relative flex w-full items-center">
+					<SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-zinc-500">
+						<SliderPrimitive.Indicator className="absolute h-full bg-primary will-change-[width]" />
+					</SliderPrimitive.Track>
+					<SliderPrimitive.Thumb className="block size-2.5 shrink-0 rounded-full bg-primary shadow-sm ring-ring/50 transition-[color,box-shadow] will-change-transform hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50" />
+				</SliderPrimitive.Control>
 			</SliderPrimitive.Root>
 		</div>
 	);
 }
 
-interface MediaPlayerTimeProps extends React.ComponentProps<"div"> {
+interface MediaPlayerTimeProps
+	extends React.ComponentProps<"div">,
+		useRender.ComponentProps<"div"> {
 	variant?: "progress" | "remaining" | "duration";
-	asChild?: boolean;
 }
 
 function MediaPlayerTime(props: MediaPlayerTimeProps) {
-	const { variant = "progress", asChild, className, ...timeProps } = props;
+	const { variant = "progress", render, className, ...timeProps } = props;
 
 	const context = useMediaPlayerContext("MediaPlayerTime");
 	const mediaCurrentTime = useMediaSelector(
@@ -2329,45 +2367,43 @@ function MediaPlayerTime(props: MediaPlayerTimeProps) {
 		};
 	}, [variant, mediaCurrentTime, seekableEnd]);
 
-	const TimePrimitive = asChild ? SlotPrimitive.Slot : "div";
+	const isSingleValue = variant === "remaining" || variant === "duration";
 
-	if (variant === "remaining" || variant === "duration") {
-		return (
-			<TimePrimitive
-				data-slot="media-player-time"
-				data-variant={variant}
-				dir={context.dir}
-				{...timeProps}
-				className={cn("text-foreground/80 text-sm tabular-nums", className)}
-			>
-				{times[variant]}
-			</TimePrimitive>
-		);
-	}
-
-	return (
-		<TimePrimitive
-			data-slot="media-player-time"
-			data-variant={variant}
-			dir={context.dir}
-			{...timeProps}
-			className={cn(
-				"flex items-center gap-1 text-foreground/80 text-sm",
-				className,
-			)}
-		>
+	const timeChildren = isSingleValue ? (
+		times[variant]
+	) : (
+		<>
 			<span className="tabular-nums">{times.current}</span>
-			<span aria-hidden="true">/</span>
+			<span role="separator" aria-hidden="true" aria-valuenow={0} tabIndex={-1}>
+				/
+			</span>
 			<span className="tabular-nums">{times.duration}</span>
-		</TimePrimitive>
+		</>
 	);
+
+	const timeClassName = isSingleValue
+		? cn("text-sm text-foreground/80 tabular-nums", className)
+		: cn("flex items-center gap-1 text-sm text-foreground/80", className);
+
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				dir: context.dir,
+				className: timeClassName,
+				children: timeChildren,
+			},
+			timeProps,
+		),
+		render,
+		state: { slot: "media-player-time", variant },
+	});
 }
 
 interface MediaPlayerPlaybackSpeedProps
-	extends React.ComponentProps<typeof DropdownMenuTrigger>,
-		React.ComponentProps<typeof Button>,
-		Omit<React.ComponentProps<typeof DropdownMenu>, "dir">,
-		Pick<React.ComponentProps<typeof DropdownMenuContent>, "sideOffset"> {
+	extends Omit<React.ComponentProps<typeof DropdownMenu>, "dir" | "children">,
+		Pick<React.ComponentProps<typeof DropdownMenuContent>, "sideOffset">,
+		React.ComponentProps<typeof Button> {
 	speeds?: number[];
 }
 
@@ -2403,10 +2439,12 @@ function MediaPlayerPlaybackSpeed(props: MediaPlayerPlaybackSpeedProps) {
 		[dispatch],
 	);
 
-	const onOpenChange = React.useCallback(
-		(open: boolean) => {
+	const onOpenChange = React.useCallback<
+		NonNullable<React.ComponentProps<typeof DropdownMenu>["onOpenChange"]>
+	>(
+		(open, eventDetails) => {
 			store.setState("menuOpen", open);
-			onOpenChangeProp?.(open);
+			onOpenChangeProp?.(open, eventDetails);
 		},
 		[store.setState, onOpenChangeProp],
 	);
@@ -2419,31 +2457,34 @@ function MediaPlayerPlaybackSpeed(props: MediaPlayerPlaybackSpeedProps) {
 			onOpenChange={onOpenChange}
 		>
 			<MediaPlayerTooltip tooltip="Playback speed" shortcut={["<", ">"]}>
-				<DropdownMenuTrigger asChild>
-					<Button
-						type="button"
-						aria-controls={context.mediaId}
-						disabled={isDisabled}
-						{...playbackSpeedProps}
-						variant="ghost"
-						size="icon"
-						className={cn("h-8 w-16 aria-expanded:bg-accent/50", className)}
-					>
-						{mediaPlaybackRate}x
-					</Button>
-				</DropdownMenuTrigger>
+				<DropdownMenuTrigger
+					nativeButton
+					render={
+						<Button
+							type="button"
+							aria-controls={context.mediaId}
+							disabled={isDisabled}
+							{...playbackSpeedProps}
+							variant="ghost"
+							size="icon"
+							className={cn("h-8 w-16 aria-expanded:bg-accent/50", className)}
+						>
+							{mediaPlaybackRate}x
+						</Button>
+					}
+				/>
 			</MediaPlayerTooltip>
 			<DropdownMenuContent
 				container={context.portalContainer}
 				sideOffset={sideOffset}
 				align="center"
-				className="min-w-(--radix-dropdown-menu-trigger-width) data-[side=top]:mb-3.5"
+				className="min-w-(--anchor-width) data-[side=top]:mb-3.5"
 			>
 				{speeds.map((speed) => (
 					<DropdownMenuItem
 						key={speed}
 						className="justify-between"
-						onSelect={() => onPlaybackRateChange(speed)}
+						onClick={() => onPlaybackRateChange(speed)}
 					>
 						{speed}x{mediaPlaybackRate === speed && <CheckIcon />}
 					</DropdownMenuItem>
@@ -2482,8 +2523,8 @@ function MediaPlayerLoop(props: MediaPlayerLoopProps) {
 		return () => observer.disconnect();
 	}, [context.mediaRef]);
 
-	const onLoopToggle = React.useCallback(
-		(event: React.MouseEvent<HTMLButtonElement>) => {
+	const onLoopToggle = React.useCallback<ButtonClickHandler>(
+		(event) => {
 			props.onClick?.(event);
 			if (event.defaultPrevented) return;
 
@@ -2542,8 +2583,8 @@ function MediaPlayerFullscreen(props: MediaPlayerFullscreenProps) {
 
 	const isDisabled = disabled || context.disabled;
 
-	const onFullscreen = React.useCallback(
-		(event: React.MouseEvent<HTMLButtonElement>) => {
+	const onFullscreen = React.useCallback<ButtonClickHandler>(
+		(event) => {
 			props.onClick?.(event);
 
 			if (event.defaultPrevented) return;
@@ -2598,8 +2639,8 @@ function MediaPlayerPiP(props: MediaPlayerPiPProps) {
 
 	const isDisabled = disabled || context.disabled;
 
-	const onPictureInPicture = React.useCallback(
-		(event: React.MouseEvent<HTMLButtonElement>) => {
+	const onPictureInPicture = React.useCallback<ButtonClickHandler>(
+		(event) => {
 			props.onClick?.(event);
 
 			if (event.defaultPrevented) return;
@@ -2666,8 +2707,8 @@ function MediaPlayerCaptions(props: React.ComponentProps<typeof Button>) {
 	);
 
 	const isDisabled = disabled || context.disabled;
-	const onCaptionsToggle = React.useCallback(
-		(event: React.MouseEvent<HTMLButtonElement>) => {
+	const onCaptionsToggle = React.useCallback<ButtonClickHandler>(
+		(event) => {
 			props.onClick?.(event);
 
 			if (event.defaultPrevented) return;
@@ -2710,8 +2751,8 @@ function MediaPlayerDownload(props: React.ComponentProps<typeof Button>) {
 
 	const isDisabled = disabled || context.disabled;
 
-	const onDownload = React.useCallback(
-		(event: React.MouseEvent<HTMLButtonElement>) => {
+	const onDownload = React.useCallback<ButtonClickHandler>(
+		(event) => {
 			props.onClick?.(event);
 
 			if (event.defaultPrevented) return;
@@ -2851,10 +2892,12 @@ function MediaPlayerSettings(props: MediaPlayerSettingsProps) {
 		return currentRendition.id ?? "Auto";
 	}, [selectedRenditionId, mediaRenditionList]);
 
-	const onOpenChange = React.useCallback(
-		(open: boolean) => {
+	const onOpenChange = React.useCallback<
+		NonNullable<React.ComponentProps<typeof DropdownMenu>["onOpenChange"]>
+	>(
+		(open, eventDetails) => {
 			store.setState("menuOpen", open);
-			onOpenChangeProp?.(open);
+			onOpenChangeProp?.(open, eventDetails);
 		},
 		[store.setState, onOpenChangeProp],
 	);
@@ -2867,22 +2910,25 @@ function MediaPlayerSettings(props: MediaPlayerSettingsProps) {
 			onOpenChange={onOpenChange}
 		>
 			<MediaPlayerTooltip tooltip="Settings">
-				<DropdownMenuTrigger asChild>
-					<Button
-						type="button"
-						aria-controls={context.mediaId}
-						aria-label="Settings"
-						data-disabled={isDisabled ? "" : undefined}
-						data-slot="media-player-settings"
-						disabled={isDisabled}
-						{...settingsProps}
-						variant="ghost"
-						size="icon"
-						className={cn("size-8 aria-expanded:bg-accent/50", className)}
-					>
-						<SettingsIcon />
-					</Button>
-				</DropdownMenuTrigger>
+				<DropdownMenuTrigger
+					nativeButton
+					render={
+						<Button
+							type="button"
+							aria-controls={context.mediaId}
+							aria-label="Settings"
+							data-disabled={isDisabled ? "" : undefined}
+							data-slot="media-player-settings"
+							disabled={isDisabled}
+							{...settingsProps}
+							variant="ghost"
+							size="icon"
+							className={cn("size-8 aria-expanded:bg-accent/50", className)}
+						>
+							<SettingsIcon />
+						</Button>
+					}
+				/>
 			</MediaPlayerTooltip>
 			<DropdownMenuContent
 				align="end"
@@ -2904,7 +2950,7 @@ function MediaPlayerSettings(props: MediaPlayerSettingsProps) {
 							<DropdownMenuItem
 								key={speed}
 								className="justify-between"
-								onSelect={() => onPlaybackRateChange(speed)}
+								onClick={() => onPlaybackRateChange(speed)}
 							>
 								{speed}x{mediaPlaybackRate === speed && <CheckIcon />}
 							</DropdownMenuItem>
@@ -2922,7 +2968,7 @@ function MediaPlayerSettings(props: MediaPlayerSettingsProps) {
 						<DropdownMenuSubContent>
 							<DropdownMenuItem
 								className="justify-between"
-								onSelect={() => onRenditionChange("auto")}
+								onClick={() => onRenditionChange("auto")}
 							>
 								Auto
 								{!selectedRenditionId && <CheckIcon />}
@@ -2947,7 +2993,7 @@ function MediaPlayerSettings(props: MediaPlayerSettingsProps) {
 										<DropdownMenuItem
 											key={rendition.id}
 											className="justify-between"
-											onSelect={() => onRenditionChange(rendition.id ?? "")}
+											onClick={() => onRenditionChange(rendition.id ?? "")}
 										>
 											{label}
 											{selected && <CheckIcon />}
@@ -2967,7 +3013,7 @@ function MediaPlayerSettings(props: MediaPlayerSettingsProps) {
 					<DropdownMenuSubContent>
 						<DropdownMenuItem
 							className="justify-between"
-							onSelect={onSubtitlesToggle}
+							onClick={onSubtitlesToggle}
 						>
 							Off
 							{!isSubtitlesActive && <CheckIcon />}
@@ -2981,7 +3027,7 @@ function MediaPlayerSettings(props: MediaPlayerSettingsProps) {
 								<DropdownMenuItem
 									key={`${subtitleTrack.kind}-${subtitleTrack.label}-${subtitleTrack.language}`}
 									className="justify-between"
-									onSelect={() => onShowSubtitleTrack(subtitleTrack)}
+									onClick={() => onShowSubtitleTrack(subtitleTrack)}
 								>
 									{subtitleTrack.label}
 									{isSelected && <CheckIcon />}
@@ -3017,69 +3063,73 @@ function MediaPlayerPortal(props: MediaPlayerPortalProps) {
 }
 
 interface MediaPlayerTooltipProps
-	extends React.ComponentProps<typeof Tooltip>,
-		Pick<React.ComponentProps<typeof TooltipContent>, "sideOffset"> {
+	extends Omit<React.ComponentProps<typeof Tooltip>, "children">,
+		Pick<React.ComponentProps<typeof TooltipContent>, "sideOffset">,
+		Pick<React.ComponentProps<typeof TooltipProvider>, "delay"> {
 	tooltip?: string;
 	shortcut?: string | string[];
+	children?: React.ReactNode;
 }
 
 function MediaPlayerTooltip(props: MediaPlayerTooltipProps) {
-	const {
-		tooltip,
-		shortcut,
-		delayDuration,
-		sideOffset,
-		children,
-		...tooltipProps
-	} = props;
+	const { tooltip, shortcut, delay, sideOffset, children, ...tooltipProps } =
+		props;
 
 	const context = useMediaPlayerContext("MediaPlayerTooltip");
-	const tooltipDelayDuration = delayDuration ?? context.tooltipDelayDuration;
+	const tooltipDelay = delay ?? context.tooltipDelay;
 	const tooltipSideOffset = sideOffset ?? context.tooltipSideOffset;
 
 	if ((!tooltip && !shortcut) || context.withoutTooltip) return <>{children}</>;
 
+	const trigger = React.isValidElement(children) ? (
+		<TooltipTrigger
+			className="text-foreground focus-visible:ring-ring/50"
+			render={children}
+		/>
+	) : (
+		<TooltipTrigger className="text-foreground focus-visible:ring-ring/50">
+			{children}
+		</TooltipTrigger>
+	);
+
 	return (
-		<Tooltip {...tooltipProps} delayDuration={tooltipDelayDuration}>
-			<TooltipTrigger
-				className="text-foreground focus-visible:ring-ring/50"
-				asChild
-			>
-				{children}
-			</TooltipTrigger>
-			<TooltipContent
-				container={context.portalContainer}
-				sideOffset={tooltipSideOffset}
-				className="flex items-center gap-2 border bg-accent px-2 py-1 font-medium text-foreground data-[side=top]:mb-3.5 dark:bg-zinc-900 [&>span]:hidden"
-			>
-				<p>{tooltip}</p>
-				{Array.isArray(shortcut) ? (
-					<div className="flex items-center gap-1">
-						{shortcut.map((shortcutKey) => (
+		<TooltipProvider delay={tooltipDelay}>
+			<Tooltip {...tooltipProps}>
+				{trigger}
+				<TooltipContent
+					container={context.portalContainer}
+					sideOffset={tooltipSideOffset}
+					className="flex items-center gap-2 border bg-accent px-2 py-1 font-medium text-foreground data-[side=top]:mb-3.5 dark:bg-zinc-900 [&>span]:hidden"
+				>
+					<p>{tooltip}</p>
+					{Array.isArray(shortcut) ? (
+						<div className="flex items-center gap-1">
+							{shortcut.map((shortcutKey) => (
+								<kbd
+									key={shortcutKey}
+									className="rounded border bg-secondary px-1.5 py-0.5 font-mono text-[11.2px] text-foreground shadow-xs select-none"
+								>
+									<abbr title={shortcutKey} className="no-underline">
+										{shortcutKey}
+									</abbr>
+								</kbd>
+							))}
+						</div>
+					) : (
+						shortcut && (
 							<kbd
-								key={shortcutKey}
-								className="select-none rounded border bg-secondary px-1.5 py-0.5 font-mono text-[11.2px] text-foreground shadow-xs"
+								key={shortcut}
+								className="rounded border bg-secondary px-1.5 py-px font-mono text-[11.2px] text-foreground shadow-xs select-none"
 							>
-								<abbr title={shortcutKey} className="no-underline">
-									{shortcutKey}
+								<abbr title={shortcut} className="no-underline">
+									{shortcut}
 								</abbr>
 							</kbd>
-						))}
-					</div>
-				) : (
-					shortcut && (
-						<kbd
-							key={shortcut}
-							className="select-none rounded border bg-secondary px-1.5 py-px font-mono text-[11.2px] text-foreground shadow-xs"
-						>
-							<abbr title={shortcut} className="no-underline">
-								{shortcut}
-							</abbr>
-						</kbd>
-					)
-				)}
-			</TooltipContent>
-		</Tooltip>
+						)
+					)}
+				</TooltipContent>
+			</Tooltip>
+		</TooltipProvider>
 	);
 }
 

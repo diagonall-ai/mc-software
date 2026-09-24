@@ -1,6 +1,5 @@
 "use client";
 
-import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import {
@@ -20,8 +19,6 @@ import {
 	CollapsibleTrigger,
 } from "~/components/ui/collapsible";
 import { cn } from "~/lib/utils";
-
-import { Shimmer } from "./shimmer";
 
 interface ReasoningContextValue {
 	isStreaming: boolean;
@@ -66,15 +63,20 @@ export const Reasoning = memo(
 		// Track if defaultOpen was explicitly set to false (to prevent auto-open)
 		const isExplicitlyClosed = defaultOpen === false;
 
-		const [isOpen, setIsOpen] = useControllableState<boolean>({
-			defaultProp: resolvedDefaultOpen,
-			onChange: onOpenChange,
-			prop: open,
-		});
-		const [duration, setDuration] = useControllableState<number | undefined>({
-			defaultProp: undefined,
-			prop: durationProp,
-		});
+		const [uncontrolledOpen, setUncontrolledOpen] =
+			useState(resolvedDefaultOpen);
+		const isOpen = open ?? uncontrolledOpen;
+		const setIsOpen = useCallback(
+			(nextOpen: boolean) => {
+				if (open === undefined) {
+					setUncontrolledOpen(nextOpen);
+				}
+				onOpenChange?.(nextOpen);
+			},
+			[open, onOpenChange],
+		);
+		const [measuredDuration, setDuration] = useState<number | undefined>();
+		const duration = durationProp ?? measuredDuration;
 
 		const hasEverStreamedRef = useRef(isStreaming);
 		const [hasAutoClosed, setHasAutoClosed] = useState(false);
@@ -152,7 +154,7 @@ export type ReasoningTriggerProps = ComponentProps<
 
 const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number) => {
 	if (isStreaming || duration === 0) {
-		return <Shimmer duration={1}>Thinking...</Shimmer>;
+		return <p className="shimmer">Thinking...</p>;
 	}
 	if (duration === undefined) {
 		return <p>Thought for a few seconds</p>;
@@ -205,7 +207,7 @@ export const ReasoningContent = memo(
 		<CollapsibleContent
 			className={cn(
 				"mt-4 text-sm",
-				"data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+				"text-muted-foreground outline-none transition-[opacity,translate] duration-200 data-ending-style:-translate-y-2 data-ending-style:opacity-0 data-starting-style:-translate-y-2 data-starting-style:opacity-0",
 				className,
 			)}
 			{...props}

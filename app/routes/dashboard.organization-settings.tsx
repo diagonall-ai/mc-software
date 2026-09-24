@@ -17,7 +17,6 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -38,6 +37,7 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
+import { toast } from "~/components/ui/toast";
 import { authClient } from "~/lib/auth-client";
 
 export const Route = createFileRoute("/dashboard/organization-settings")({
@@ -95,11 +95,13 @@ function OrganizationSettingsPage() {
 					.filter(isOutstandingInvitation),
 			);
 		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? error.message
-					: "Chargement des invitations impossible",
-			);
+			toast.add({
+				title:
+					error instanceof Error
+						? error.message
+						: "Chargement des invitations impossible",
+				type: "error",
+			});
 		} finally {
 			setLoadingOrganizationInvitations(false);
 		}
@@ -135,7 +137,7 @@ function OrganizationSettingsPage() {
 
 		const validationError = validateOrganizationLogoFile(file);
 		if (validationError) {
-			toast.error(validationError);
+			toast.add({ title: validationError, type: "error" });
 			event.target.value = "";
 			return;
 		}
@@ -148,13 +150,18 @@ function OrganizationSettingsPage() {
 				...currentDraft,
 				logo,
 			}));
-			toast.success("Image de l’organisation mise à jour");
+			toast.add({
+				title: "Image de l’organisation mise à jour",
+				type: "success",
+			});
 		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? error.message
-					: "Mise à jour de l’image impossible",
-			);
+			toast.add({
+				title:
+					error instanceof Error
+						? error.message
+						: "Mise à jour de l’image impossible",
+				type: "error",
+			});
 		} finally {
 			setIsUploadingLogo(false);
 			event.target.value = "";
@@ -203,11 +210,13 @@ function OrganizationSettingsPage() {
 									barre latérale.
 								</p>
 							</div>
-							<Button asChild variant="outline">
-								<Link to="/dashboard">
-									Retour au tableau de bord
-									<ChevronRight className="size-4" />
-								</Link>
+							<Button
+								nativeButton={false}
+								render={<Link to="/dashboard" />}
+								variant="outline"
+							>
+								Retour au tableau de bord
+								<ChevronRight className="size-4" />
 							</Button>
 						</div>
 					</CardContent>
@@ -649,13 +658,15 @@ async function handleSaveOrganization(
 		}
 
 		await onSaved();
-		toast.success("Organisation mise à jour");
+		toast.add({ title: "Organisation mise à jour", type: "success" });
 	} catch (error) {
-		toast.error(
-			error instanceof Error
-				? error.message
-				: "Mise à jour de l’organisation impossible",
-		);
+		toast.add({
+			title:
+				error instanceof Error
+					? error.message
+					: "Mise à jour de l’organisation impossible",
+			type: "error",
+		});
 	} finally {
 		setIsSaving(false);
 	}
@@ -692,13 +703,15 @@ async function handleInviteMember(
 		}
 
 		await onInvited();
-		toast.success("Invitation envoyée");
+		toast.add({ title: "Invitation envoyée", type: "success" });
 	} catch (error) {
-		toast.error(
-			error instanceof Error
-				? error.message
-				: "Envoi de l’invitation impossible",
-		);
+		toast.add({
+			title:
+				error instanceof Error
+					? error.message
+					: "Envoi de l’invitation impossible",
+			type: "error",
+		});
 	} finally {
 		setIsInviting(false);
 	}
@@ -733,13 +746,15 @@ async function handleCancelInvitation(
 			),
 		);
 		await onCompleted();
-		toast.success("Invitation annulée");
+		toast.add({ title: "Invitation annulée", type: "success" });
 	} catch (error) {
-		toast.error(
-			error instanceof Error
-				? error.message
-				: "Annulation de l’invitation impossible",
-		);
+		toast.add({
+			title:
+				error instanceof Error
+					? error.message
+					: "Annulation de l’invitation impossible",
+			type: "error",
+		});
 	} finally {
 		setProcessingInvitationId(null);
 	}

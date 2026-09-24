@@ -47,8 +47,12 @@ export function RouteErrorState({
 					</p>
 				</CardContent>
 				<CardFooter className="gap-2">
-					<Button asChild variant="outline">
-						<a href="/dashboard">Dashboard</a>
+					<Button
+						nativeButton={false}
+						render={<a href="/dashboard" />}
+						variant="outline"
+					>
+						Dashboard
 					</Button>
 					{onReset ? (
 						<Button onClick={onReset} type="button">

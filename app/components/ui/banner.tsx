@@ -1,14 +1,15 @@
 "use client";
 
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "cn";
 import { X } from "lucide-react";
-import { Slot as SlotPrimitive } from "radix-ui";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Button } from "~/components/ui/button";
 import { useAsRef } from "~/hooks/use-as-ref";
 import { useLazyRef } from "~/hooks/use-lazy-ref";
-import { cn } from "~/lib/utils";
 
 const BANNER_ANIMATION_DURATION = 400;
 const DEFAULT_BANNER_PRIORITY = 0;
@@ -16,12 +17,11 @@ const DEFAULT_BANNER_DISMISSIBLE = true;
 
 type BannerVariant = "default" | "info" | "success" | "warning" | "destructive";
 type BannerSide = "top" | "bottom";
+type BannerStrategy = "fixed" | "static" | "sticky" | "absolute";
 
-interface DivProps extends React.ComponentProps<"div"> {
-	asChild?: boolean;
-}
-
-type CloseElement = React.ComponentRef<typeof BannerClose>;
+interface DivProps
+	extends useRender.ComponentProps<"div">,
+		React.ComponentProps<"div"> {}
 
 interface BannerRenderProps {
 	id: string;
@@ -40,8 +40,8 @@ interface BannerData {
 	content: BannerContent;
 	variant?: BannerVariant;
 	priority?: number;
-	dismissible?: boolean;
 	duration?: number;
+	dismissible?: boolean;
 	onDismiss?: () => void;
 }
 
@@ -120,6 +120,7 @@ interface BannersProps {
 	children?: React.ReactNode;
 	maxVisible?: number;
 	side?: BannerSide;
+	strategy?: BannerStrategy;
 	container?: Element | DocumentFragment | null;
 }
 
@@ -128,6 +129,7 @@ function Banners(props: BannersProps) {
 		children,
 		maxVisible = 1,
 		side = "top",
+		strategy = "fixed",
 		container: containerProp,
 	} = props;
 
@@ -243,7 +245,11 @@ function Banners(props: BannersProps) {
 	const banners = useStore(store, (state) => state.banners);
 	const heights = useStore(store, (state) => state.heights);
 	const visibleBanners = banners.slice(0, maxVisible);
-	const container = containerProp ?? globalThis.document?.body ?? null;
+
+	const withPortal = strategy === "fixed" || strategy === "absolute";
+	const container = withPortal
+		? (containerProp ?? globalThis.document?.body ?? null)
+		: null;
 
 	const totalHeight = React.useMemo(() => {
 		let total = 0;
@@ -253,35 +259,46 @@ function Banners(props: BannersProps) {
 		return total;
 	}, [visibleBanners, heights]);
 
+	const bannerContainer = visibleBanners.length > 0 && (
+		<div
+			data-slot="banner-container"
+			data-side={side}
+			data-strategy={strategy}
+			className={cn(
+				"pointer-events-none right-0 left-0 isolate z-50",
+				strategy === "fixed" && "fixed",
+				strategy === "static" && "relative",
+				strategy === "sticky" && "sticky",
+				strategy === "absolute" && "absolute",
+				side === "top" ? "top-0" : "bottom-0",
+			)}
+			style={{
+				height: totalHeight > 0 ? totalHeight : "auto",
+				transition: `height ${BANNER_ANIMATION_DURATION}ms cubic-bezier(0.32, 0.72, 0, 1)`,
+			}}
+		>
+			{visibleBanners.map((banner, index) => (
+				<BannerImpl key={banner.id} banner={banner} side={side} index={index} />
+			))}
+		</div>
+	);
+
 	return (
 		<StoreContext.Provider value={store}>
-			{children}
-			{container &&
-				visibleBanners.length > 0 &&
-				ReactDOM.createPortal(
-					<div
-						data-slot="banner-container"
-						data-side={side}
-						className={cn(
-							"pointer-events-none fixed right-0 left-0 isolate z-50",
-							side === "top" ? "top-0" : "bottom-0",
-						)}
-						style={{
-							height: totalHeight > 0 ? totalHeight : "auto",
-							transition: `height ${BANNER_ANIMATION_DURATION}ms cubic-bezier(0.32, 0.72, 0, 1)`,
-						}}
-					>
-						{visibleBanners.map((banner, index) => (
-							<BannerImpl
-								key={banner.id}
-								banner={banner}
-								side={side}
-								index={index}
-							/>
-						))}
-					</div>,
-					container,
-				)}
+			{strategy === "static" || strategy === "sticky" ? (
+				<>
+					{side === "top" && bannerContainer}
+					{children}
+					{side === "bottom" && bannerContainer}
+				</>
+			) : (
+				<>
+					{children}
+					{container &&
+						bannerContainer &&
+						ReactDOM.createPortal(bannerContainer, container)}
+				</>
+			)}
 		</StoreContext.Provider>
 	);
 }
@@ -419,6 +436,8 @@ function BannerImpl(props: BannerImplProps) {
 	return (
 		<BannerContext.Provider value={contextValue}>
 			<div
+				role="status"
+				aria-live="polite"
 				data-slot="queued-banner"
 				data-state={removing ? "closed" : "open"}
 				data-mounted={mounted}
@@ -453,8 +472,8 @@ interface BannerProps extends DivProps, VariantProps<typeof bannerVariants> {
 	onOpenChange?: (open: boolean) => void;
 	onDismiss?: () => void;
 	priority?: number;
-	dismissible?: boolean;
 	duration?: number;
+	dismissible?: boolean;
 }
 
 function Banner(props: BannerProps) {
@@ -462,14 +481,14 @@ function Banner(props: BannerProps) {
 		className,
 		variant = "default",
 		open: openProp,
-		defaultOpen,
+		defaultOpen = true,
 		onOpenChange,
 		onDismiss,
 		priority,
-		dismissible = DEFAULT_BANNER_DISMISSIBLE,
 		duration,
+		dismissible = DEFAULT_BANNER_DISMISSIBLE,
 		children,
-		asChild,
+		render,
 		...rootProps
 	} = props;
 
@@ -478,7 +497,7 @@ function Banner(props: BannerProps) {
 	const isInsideStore = store !== null;
 	const isControlled = openProp !== undefined;
 
-	const openRef = useLazyRef(() => openProp ?? defaultOpen ?? true);
+	const openRef = useLazyRef(() => openProp ?? defaultOpen);
 	const listenersRef = useLazyRef<Set<() => void>>(() => new Set());
 	const bannerIdRef = React.useRef<string | null>(null);
 	const onDismissRef = useAsRef(onDismiss);
@@ -554,50 +573,67 @@ function Banner(props: BannerProps) {
 		[variant, dismissible, onClose],
 	);
 
-	if (!open || isInsideStore) return null;
+	const rendered = useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				role: "status",
+				"aria-live": "polite",
+				className: cn(bannerVariants({ variant }), className),
+				children,
+			},
+			rootProps,
+		),
+		render,
+		state: {
+			slot: "banner",
+			state: "open",
+		},
+	});
 
-	const RootPrimitive = asChild ? SlotPrimitive.Slot : "div";
+	if (!open || isInsideStore) return null;
 
 	return (
 		<BannerContext.Provider value={contextValue}>
-			<RootPrimitive
-				data-slot="banner"
-				data-state="open"
-				className={cn(bannerVariants({ variant, className }))}
-				{...rootProps}
-			>
-				{children}
-			</RootPrimitive>
+			{rendered}
 		</BannerContext.Provider>
 	);
 }
 
 function BannerIcon(props: DivProps) {
-	const { className, asChild, ...iconProps } = props;
+	const { className, render, ...iconProps } = props;
 
-	const IconPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<IconPrimitive
-			data-slot="banner-icon"
-			className={cn("flex shrink-0 items-center [&>svg]:size-4", className)}
-			{...iconProps}
-		/>
-	);
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				className: cn("flex shrink-0 items-center [&>svg]:size-4", className),
+			},
+			iconProps,
+		),
+		render,
+		state: {
+			slot: "banner-icon",
+		},
+	});
 }
 
 function BannerContent(props: DivProps) {
-	const { className, asChild, ...contentProps } = props;
+	const { className, render, ...contentProps } = props;
 
-	const ContentPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<ContentPrimitive
-			data-slot="banner-content"
-			className={cn("flex min-w-0 flex-1 flex-col gap-1", className)}
-			{...contentProps}
-		/>
-	);
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				className: cn("flex min-w-0 flex-1 flex-col gap-1", className),
+			},
+			contentProps,
+		),
+		render,
+		state: {
+			slot: "banner-content",
+		},
+	});
 }
 
 function BannerTitle(props: React.ComponentProps<"div">) {
@@ -606,7 +642,7 @@ function BannerTitle(props: React.ComponentProps<"div">) {
 	return (
 		<div
 			data-slot="banner-title"
-			className={cn("font-medium text-sm leading-none", className)}
+			className={cn("text-sm leading-none font-medium", className)}
 			{...titleProps}
 		/>
 	);
@@ -625,17 +661,21 @@ function BannerDescription(props: React.ComponentProps<"div">) {
 }
 
 function BannerActions(props: DivProps) {
-	const { className, asChild, ...actionsProps } = props;
+	const { className, render, ...actionsProps } = props;
 
-	const ActionsPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-	return (
-		<ActionsPrimitive
-			data-slot="banner-actions"
-			className={cn("flex items-center gap-2", className)}
-			{...actionsProps}
-		/>
-	);
+	return useRender({
+		defaultTagName: "div",
+		props: mergeProps<"div">(
+			{
+				className: cn("flex items-center gap-2", className),
+			},
+			actionsProps,
+		),
+		render,
+		state: {
+			slot: "banner-actions",
+		},
+	});
 }
 
 function BannerClose(props: React.ComponentProps<typeof Button>) {
@@ -646,20 +686,21 @@ function BannerClose(props: React.ComponentProps<typeof Button>) {
 
 	const isDisabled = disabled ?? !dismissible;
 
-	const onClick = React.useCallback(
-		(event: React.MouseEvent<CloseElement>) => {
-			onClickProp?.(event);
-			if (event.defaultPrevented || isDisabled) return;
-			onClose?.();
-		},
-		[onClickProp, isDisabled, onClose],
-	);
+	const onClick: React.ComponentProps<typeof BannerClose>["onClick"] =
+		React.useCallback(
+			(event) => {
+				onClickProp?.(event);
+				if (event.defaultPrevented || isDisabled) return;
+				onClose?.();
+			},
+			[onClickProp, isDisabled, onClose],
+		);
 
 	return (
 		<Button
 			data-slot="banner-close"
 			variant="ghost"
-			size="icon"
+			size="icon-sm"
 			onClick={onClick}
 			disabled={isDisabled}
 			{...closeProps}

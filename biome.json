@@ -5,6 +5,7 @@
     "rules": {
       "recommended": true,
       "a11y": {
+        "useAnchorContent": "off",
         "useAriaPropsSupportedByRole": "off",
         "useKeyWithClickEvents": "off",
         "useSemanticElements": "off"
@@ -17,6 +18,31 @@
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["app/components/ui/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noLabelWithoutControl": "off",
+            "noRedundantRoles": "off",
+            "noSvgWithoutTitle": "off",
+            "useAriaPropsForRole": "off",
+            "useFocusableInteractive": "off"
+          },
+          "correctness": {
+            "noUnusedImports": "off"
+          },
+          "security": {
+            "noDangerouslySetInnerHtml": "off"
+          },
+          "suspicious": {
+            "noDoubleEquals": "off"
+          }
+        }
+      }
+    }
+  ],
   "formatter": {
     "enabled": true,
     "indentStyle": "tab"
@@ -26,6 +52,7 @@
       "**",
       "!**/node_modules",
       "!**/.agents",
+      "!**/.claude",
       "!**/.codex",
       "!**/app/routeTree.gen.ts",
       "!**/.wrangler",
