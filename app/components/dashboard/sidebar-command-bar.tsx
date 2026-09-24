@@ -1,10 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
 import {
 	CommandIcon,
-	Copy,
 	Home,
 	LogOut,
 	Moon,
+	Plug,
 	Sparkles,
 	Sun,
 	UserRound,
@@ -30,14 +30,14 @@ import {
 } from "~/components/ui/tooltip";
 
 type DashboardSidebarCommandBarProps = {
-	onCopyMcpUrl: () => Promise<void>;
+	onOpenMcp: () => void;
 	onSignOut: () => Promise<void>;
 	onThemeChange: (theme: "light" | "dark") => void;
 	theme: "light" | "dark";
 };
 
 export function DashboardSidebarCommandBar({
-	onCopyMcpUrl,
+	onOpenMcp,
 	onSignOut,
 	onThemeChange,
 	theme,
@@ -97,7 +97,7 @@ export function DashboardSidebarCommandBar({
 					</TooltipContent>
 				</Tooltip>
 				<DashboardCommandDialog
-					onCopyMcpUrl={onCopyMcpUrl}
+					onOpenMcp={onOpenMcp}
 					onOpenChange={setOpen}
 					onSignOut={onSignOut}
 					onThemeChange={onThemeChange}
@@ -123,7 +123,7 @@ export function DashboardSidebarCommandBar({
 				<CommandShortcut className="ml-2.5 inline-flex">⌘K</CommandShortcut>
 			</Button>
 			<DashboardCommandDialog
-				onCopyMcpUrl={onCopyMcpUrl}
+				onOpenMcp={onOpenMcp}
 				onOpenChange={setOpen}
 				onSignOut={onSignOut}
 				onThemeChange={onThemeChange}
@@ -135,14 +135,14 @@ export function DashboardSidebarCommandBar({
 }
 
 function DashboardCommandDialog({
-	onCopyMcpUrl,
+	onOpenMcp,
 	onOpenChange,
 	onSignOut,
 	onThemeChange,
 	open,
 	theme,
 }: {
-	onCopyMcpUrl: () => Promise<void>;
+	onOpenMcp: () => void;
 	onOpenChange: (open: boolean) => void;
 	onSignOut: () => Promise<void>;
 	onThemeChange: (theme: "light" | "dark") => void;
@@ -223,11 +223,11 @@ function DashboardCommandDialog({
 						<CommandItem
 							onSelect={() => {
 								onOpenChange(false);
-								void onCopyMcpUrl();
+								onOpenMcp();
 							}}
 						>
-							<Copy className="size-4" />
-							Copier l’URL MCP
+							<Plug className="size-4" />
+							Connecter un agent (MCP)
 						</CommandItem>
 						<CommandItem
 							onSelect={() => {

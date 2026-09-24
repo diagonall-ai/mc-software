@@ -10,12 +10,12 @@ import {
 import {
 	ArrowLeft,
 	BookOpen,
-	Copy,
 	Home,
 	Key,
 	Layers3,
 	LogOut,
 	Moon,
+	Plug,
 	Sparkles,
 	Sun,
 	UserRound,
@@ -28,6 +28,7 @@ import {
 	DashboardShellPortalProvider,
 } from "~/components/dashboard/shell-portals";
 import { DashboardSidebarCommandBar } from "~/components/dashboard/sidebar-command-bar";
+import { McpConnectDialog } from "~/components/mcp/mcp-connect-dialog";
 import { RouteErrorComponent } from "~/components/route-error-state";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
@@ -54,7 +55,6 @@ import {
 } from "~/components/ui/sidebar";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
-import { toast } from "~/components/ui/toast";
 import {
 	Tooltip,
 	TooltipContent,
@@ -108,6 +108,7 @@ function DashboardShell() {
 	const navigate = useNavigate();
 	const { pathname } = useLocation();
 	const [theme, setTheme] = useState<"light" | "dark">("light");
+	const [mcpOpen, setMcpOpen] = useState(false);
 
 	useEffect(() => {
 		const root = document.documentElement;
@@ -117,23 +118,6 @@ function DashboardShell() {
 	async function handleSignOut() {
 		await authClient.signOut();
 		navigate({ to: "/", viewTransition: true });
-	}
-
-	async function handleCopyMcpUrl() {
-		const mcpUrl = `${window.location.origin}/api/mcp`;
-
-		try {
-			await navigator.clipboard.writeText(mcpUrl);
-			toast.add({ title: "URL MCP copiée", type: "success" });
-		} catch (error) {
-			toast.add({
-				title:
-					error instanceof Error
-						? error.message
-						: "Copie de l’URL MCP impossible",
-				type: "error",
-			});
-		}
 	}
 
 	function applyTheme(nextTheme: "light" | "dark") {
@@ -171,7 +155,7 @@ function DashboardShell() {
 						</SidebarGroup>
 					</SidebarContent>
 					<DashboardSidebarFooter
-						onCopyMcpUrl={handleCopyMcpUrl}
+						onOpenMcp={() => setMcpOpen(true)}
 						onSignOut={handleSignOut}
 						onThemeChange={applyTheme}
 						theme={theme}
@@ -214,6 +198,7 @@ function DashboardShell() {
 					</div>
 					<DashboardShellFooterPortalTargets />
 				</SidebarInset>
+				<McpConnectDialog onOpenChange={setMcpOpen} open={mcpOpen} />
 			</SidebarProvider>
 		</DashboardShellPortalProvider>
 	);
@@ -305,12 +290,12 @@ function DashboardSidebarUser({
 
 function SessionFooter({
 	className,
-	onCopyMcpUrl,
+	onOpenMcp,
 	onSignOut,
 	user,
 }: {
 	className?: string;
-	onCopyMcpUrl: () => Promise<void>;
+	onOpenMcp: () => void;
 	user:
 		| {
 				email?: string;
@@ -368,7 +353,7 @@ function SessionFooter({
 						sideOffset={10}
 					>
 						<CompteMenuItems
-							onCopyMcpUrl={onCopyMcpUrl}
+							onOpenMcp={onOpenMcp}
 							onOpenApiKeys={() => setApiKeyDrawerOpen(true)}
 							onSignOut={onSignOut}
 						/>
@@ -380,11 +365,11 @@ function SessionFooter({
 }
 
 function CompteMenuItems({
-	onCopyMcpUrl,
+	onOpenMcp,
 	onOpenApiKeys,
 	onSignOut,
 }: {
-	onCopyMcpUrl: () => Promise<void>;
+	onOpenMcp: () => void;
 	onOpenApiKeys: () => void;
 	onSignOut: () => Promise<void>;
 }) {
@@ -398,9 +383,9 @@ function CompteMenuItems({
 				<Key className="size-4" />
 				<span>Clés API</span>
 			</DropdownMenuItem>
-			<DropdownMenuItem onClick={() => void onCopyMcpUrl()}>
-				<Copy className="size-4" />
-				<span>Copier l’URL MCP</span>
+			<DropdownMenuItem onClick={onOpenMcp}>
+				<Plug className="size-4" />
+				<span>Connecter un agent (MCP)</span>
 			</DropdownMenuItem>
 			<DropdownMenuItem render={<Link to="/dashboard/profile" />}>
 				<UserRound className="size-4" />
@@ -440,13 +425,13 @@ function CollapsedSessionFooterSkeleton() {
 }
 
 function DashboardSidebarFooter({
-	onCopyMcpUrl,
+	onOpenMcp,
 	onThemeChange,
 	theme,
 	user,
 	onSignOut,
 }: {
-	onCopyMcpUrl: () => Promise<void>;
+	onOpenMcp: () => void;
 	onThemeChange: (theme: "light" | "dark") => void;
 	theme: "light" | "dark";
 	user:
@@ -469,7 +454,7 @@ function DashboardSidebarFooter({
 			return (
 				<SidebarFooter className="items-center gap-1">
 					<DashboardSidebarCommandBar
-						onCopyMcpUrl={onCopyMcpUrl}
+						onOpenMcp={onOpenMcp}
 						onSignOut={onSignOut}
 						onThemeChange={onThemeChange}
 						theme={theme}
@@ -494,7 +479,7 @@ function DashboardSidebarFooter({
 					showTrigger={false}
 				/>
 				<DashboardSidebarCommandBar
-					onCopyMcpUrl={onCopyMcpUrl}
+					onOpenMcp={onOpenMcp}
 					onSignOut={onSignOut}
 					onThemeChange={onThemeChange}
 					theme={theme}
@@ -529,7 +514,7 @@ function DashboardSidebarFooter({
 					</Tooltip>
 					<DropdownMenuContent align="start" side="right" sideOffset={10}>
 						<CompteMenuItems
-							onCopyMcpUrl={onCopyMcpUrl}
+							onOpenMcp={onOpenMcp}
 							onOpenApiKeys={() => setApiKeyDrawerOpen(true)}
 							onSignOut={onSignOut}
 						/>
@@ -542,7 +527,7 @@ function DashboardSidebarFooter({
 	return (
 		<SidebarFooter className="space-y-2">
 			<DashboardSidebarCommandBar
-				onCopyMcpUrl={onCopyMcpUrl}
+				onOpenMcp={onOpenMcp}
 				onSignOut={onSignOut}
 				onThemeChange={onThemeChange}
 				theme={theme}
@@ -550,7 +535,7 @@ function DashboardSidebarFooter({
 			<div className="flex items-center gap-2">
 				<SessionFooter
 					className="min-w-0 flex-1"
-					onCopyMcpUrl={onCopyMcpUrl}
+					onOpenMcp={onOpenMcp}
 					onSignOut={onSignOut}
 					user={user}
 				/>
