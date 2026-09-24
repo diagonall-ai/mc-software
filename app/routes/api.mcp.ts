@@ -1,5 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { createFileRoute } from "@tanstack/react-router";
 import {
 	type ApiAuthResult,
@@ -7,17 +6,29 @@ import {
 	extractBearerApiKey,
 	resolveAuthSession,
 } from "~/lib/api-auth";
-import { auth } from "~/lib/auth";
+import { getMcpSession } from "~/lib/auth";
 import { createAuthInfo, MCP_SERVER_INFO, registerMcpTools } from "~/lib/mcp";
 import type { McpSession } from "~/lib/rest-auth";
 
+// Browser-based MCP clients (such as the MCP Inspector) call from another
+// origin. "*" does not cover Authorization, so it is listed too.
 const CORS_HEADERS = {
 	"Access-Control-Allow-Origin": "*",
 	"Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-	"Access-Control-Allow-Headers":
-		"Content-Type, Authorization, Accept, mcp-session-id, mcp-protocol-version, last-event-id",
-	"Access-Control-Expose-Headers": "mcp-session-id, mcp-protocol-version",
+	"Access-Control-Allow-Headers": "*, Authorization",
+	"Access-Control-Expose-Headers": "*",
 } as const;
+
+// The scopes offered in the 401 challenge. MCP clients request them, and
+// offline_access gets them a refresh token, so users stay signed in.
+const CHALLENGE_SCOPES = "openid profile email offline_access";
+
+// Serves the MCP 2026-07-28 protocol, and 2025-era clients statelessly.
+const mcpHandler = createMcpHandler(() => {
+	const server = new McpServer(MCP_SERVER_INFO);
+	registerMcpTools(server);
+	return server;
+});
 
 function withCors(response: Response): Response {
 	const headers = new Headers(response.headers);
@@ -33,42 +44,33 @@ function withCors(response: Response): Response {
 }
 
 function createUnauthorizedResponse(request: Request): Response {
-	if (request.method !== "GET" && request.method !== "HEAD") {
-		const headers = new Headers(CORS_HEADERS);
-		headers.set("Location", request.url);
-		return new Response(null, {
-			status: 303,
-			headers,
-		});
-	}
-
 	const headers = new Headers(CORS_HEADERS);
+	headers.set("Content-Type", "application/json");
 	headers.set(
 		"WWW-Authenticate",
-		`Bearer resource_metadata="${new URL(request.url).origin}/.well-known/oauth-protected-resource"`,
+		`Bearer resource_metadata="${new URL(request.url).origin}/.well-known/oauth-protected-resource/api/mcp", scope="${CHALLENGE_SCOPES}"`,
 	);
 
-	return new Response(null, {
-		status: 401,
-		headers,
-	});
+	return new Response(
+		JSON.stringify({
+			jsonrpc: "2.0",
+			error: { code: -32000, message: "Unauthorized" },
+			id: null,
+		}),
+		{ status: 401, headers },
+	);
 }
 
-function createMcpServer(): McpServer {
-	const server = new McpServer(MCP_SERVER_INFO);
-	registerMcpTools(server);
-	return server;
-}
-
-function createApiKeyBackedMcpSession(session: ApiAuthResult): McpSession {
+function createApiKeyBackedMcpSession(
+	apiKey: string,
+	session: ApiAuthResult,
+): McpSession {
 	return {
-		accessToken: session.session.token,
-		refreshToken: session.session.token,
-		accessTokenExpiresAt: session.session.expiresAt,
-		refreshTokenExpiresAt: session.session.expiresAt,
-		clientId: "api-key",
 		userId: session.user.id,
-		scopes: "",
+		clientId: "api-key",
+		scopes: [],
+		accessToken: apiKey,
+		expiresAt: Math.floor(new Date(session.session.expiresAt).getTime() / 1000),
 	};
 }
 
@@ -84,43 +86,21 @@ async function resolveApiKeyBackedMcpSession(
 		"x-api-key": apiKey,
 	});
 
-	return authSession ? createApiKeyBackedMcpSession(authSession) : null;
-}
-
-async function handleAuthenticatedMcpRequest(
-	request: Request,
-	session: McpSession,
-): Promise<Response> {
-	const transport = new WebStandardStreamableHTTPServerTransport({
-		enableJsonResponse: true,
-		sessionIdGenerator: undefined,
-	});
-	const server = createMcpServer();
-
-	try {
-		await server.connect(transport);
-		return withCors(
-			await transport.handleRequest(request, {
-				authInfo: createAuthInfo(session),
-			}),
-		);
-	} finally {
-		await transport.close();
-		await server.close();
-	}
+	return authSession ? createApiKeyBackedMcpSession(apiKey, authSession) : null;
 }
 
 async function handler(request: Request): Promise<Response> {
 	const session =
-		(await auth.api.getMcpSession({
-			headers: request.headers,
-		})) ?? (await resolveApiKeyBackedMcpSession(request));
+		(await getMcpSession(request)) ??
+		(await resolveApiKeyBackedMcpSession(request));
 
 	if (!session) {
 		return createUnauthorizedResponse(request);
 	}
 
-	return handleAuthenticatedMcpRequest(request, session);
+	return withCors(
+		await mcpHandler.fetch(request, { authInfo: createAuthInfo(session) }),
+	);
 }
 
 export const Route = createFileRoute("/api/mcp")({

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LogIn, Shield } from "lucide-react";
+import { useEffect, useState } from "react";
 import { PublicAuthCard } from "~/components/auth/public-auth-card";
 import { Button } from "~/components/ui/button";
 import {
@@ -12,65 +13,40 @@ import {
 import { authClient } from "~/lib/auth-client";
 import { PROJECT_NAME } from "~/lib/project";
 
-type McpSearchParams = {
-	client_id?: string;
-	scope?: string;
-	redirect_uri?: string;
-	response_type?: string;
-	state?: string;
-	code_challenge?: string;
-	code_challenge_method?: string;
-};
-
+// Where Better Auth sends people when an AI client asks to connect and they are
+// not signed in. The query string is the signed OAuth request: it is read
+// as-is, never declared as route search params, so the router cannot rewrite
+// it. Signing in resumes the authorization (see oauthProviderClient).
 export const Route = createFileRoute("/mcp/login")({
-	validateSearch: (search: Record<string, unknown>): McpSearchParams => ({
-		client_id:
-			typeof search.client_id === "string" ? search.client_id : undefined,
-		scope: typeof search.scope === "string" ? search.scope : undefined,
-		redirect_uri:
-			typeof search.redirect_uri === "string" ? search.redirect_uri : undefined,
-		response_type:
-			typeof search.response_type === "string"
-				? search.response_type
-				: undefined,
-		state: typeof search.state === "string" ? search.state : undefined,
-		code_challenge:
-			typeof search.code_challenge === "string"
-				? search.code_challenge
-				: undefined,
-		code_challenge_method:
-			typeof search.code_challenge_method === "string"
-				? search.code_challenge_method
-				: undefined,
-	}),
 	component: McpLoginPage,
 });
 
-// What each OAuth scope lets the agent do, in the words of the person approving it.
-const SCOPE_LABELS: Record<string, string> = {
-	openid: "Vous identifier",
-	profile: "Voir votre nom et votre photo",
-	email: "Voir votre adresse email",
-	offline_access: "Rester connectée sans vous redemander",
-};
-
-function buildAuthorizeUrl(search: McpSearchParams): string {
-	const params = new URLSearchParams();
-	for (const [key, value] of Object.entries(search)) {
-		if (value) {
-			params.set(key, value);
-		}
-	}
-	return `/api/auth/mcp/authorize?${params.toString()}`;
-}
+const SIGNATURE_PARAMS = ["sig", "ba_iat", "ba_param", "ba_pl"];
 
 function McpLoginPage() {
-	const search = Route.useSearch();
+	const [search, setSearch] = useState<URLSearchParams>();
+	const [clientName, setClientName] = useState<string>();
 	const { data: sessionData, isPending } = authClient.useSession();
-	const isAuthenticated = Boolean(sessionData?.user);
-	const hasAuthorizationContext = Boolean(search.client_id);
+	const clientId = search?.get("client_id");
+	// A client can ask for a fresh sign-in (prompt=login), even with a session.
+	const showSignIn =
+		!sessionData?.user ||
+		search?.get("prompt")?.split(" ").includes("login") === true;
 
-	if (isPending) {
+	useEffect(() => {
+		setSearch(new URLSearchParams(window.location.search));
+	}, []);
+
+	useEffect(() => {
+		if (!clientId) {
+			return;
+		}
+		void authClient.oauth2
+			.publicClientPrelogin({ client_id: clientId })
+			.then(({ data }) => setClientName(data?.client_name ?? undefined));
+	}, [clientId]);
+
+	if (isPending || !search) {
 		return (
 			<div className="flex min-h-screen items-center justify-center px-4">
 				<Card className="w-full max-w-sm">
@@ -85,30 +61,26 @@ function McpLoginPage() {
 	return (
 		<div className="flex min-h-screen items-center justify-center px-4">
 			<div className="flex w-full max-w-sm flex-col gap-4">
-				{hasAuthorizationContext && <McpContextBanner search={search} />}
-				{isAuthenticated ? (
-					<AuthenticatedContinueCard search={search} />
+				{clientId ? (
+					<McpContextBanner clientName={clientName} signIn={showSignIn} />
+				) : null}
+				{showSignIn ? (
+					<PublicAuthCard onAuthSuccess={() => {}} />
 				) : (
-					<PublicAuthCard
-						onAuthSuccess={
-							hasAuthorizationContext
-								? () => {
-										window.location.href = buildAuthorizeUrl(search);
-									}
-								: undefined
-						}
-					/>
+					<AuthenticatedContinueCard search={search} />
 				)}
 			</div>
 		</div>
 	);
 }
 
-function McpContextBanner({ search }: { search: McpSearchParams }) {
-	const scopes = search.scope
-		? search.scope.split(/[\s,]+/).filter(Boolean)
-		: [];
-
+function McpContextBanner({
+	clientName,
+	signIn,
+}: {
+	clientName?: string;
+	signIn: boolean;
+}) {
 	return (
 		<Card className="border-border/50 bg-muted/30">
 			<CardContent className="flex items-start gap-3 py-4">
@@ -116,38 +88,25 @@ function McpContextBanner({ search }: { search: McpSearchParams }) {
 				<div className="min-w-0 space-y-1">
 					<p className="text-sm font-medium">Demande d’autorisation</p>
 					<p className="text-sm text-muted-foreground">
-						Une application
-						{search.client_id ? (
-							<>
-								{" "}
-								(<span className="font-mono text-xs">{search.client_id}</span>)
-							</>
-						) : null}{" "}
-						demande l’accès à votre compte {PROJECT_NAME}.
+						{clientName ?? "Une application"} demande l’accès à votre compte{" "}
+						{PROJECT_NAME}.{signIn ? " Connectez-vous pour continuer." : ""}
 					</p>
-					{scopes.length > 0 && (
-						<div className="pt-1">
-							<p className="text-xs font-medium text-muted-foreground">
-								Elle pourra :
-							</p>
-							<ul className="mt-1 list-disc space-y-0.5 pl-4 text-sm">
-								{scopes.map((scope) => (
-									<li key={scope}>{SCOPE_LABELS[scope] ?? scope}</li>
-								))}
-							</ul>
-						</div>
-					)}
 				</div>
 			</CardContent>
 		</Card>
 	);
 }
 
-function AuthenticatedContinueCard({ search }: { search: McpSearchParams }) {
+// Already signed in (for example in another tab): send the original request
+// back to the authorize endpoint, which now finds the session.
+function AuthenticatedContinueCard({ search }: { search: URLSearchParams }) {
 	const { data: sessionData } = authClient.useSession();
 	const user = sessionData?.user;
-	const authorizeUrl = buildAuthorizeUrl(search);
-	const hasAuthorizationContext = Boolean(search.client_id);
+	const hasAuthorizationContext = search.has("client_id");
+	const authorizeQuery = new URLSearchParams(search);
+	for (const param of SIGNATURE_PARAMS) {
+		authorizeQuery.delete(param);
+	}
 
 	return (
 		<Card className="w-full">
@@ -172,7 +131,7 @@ function AuthenticatedContinueCard({ search }: { search: McpSearchParams }) {
 					<Button
 						className="w-full"
 						nativeButton={false}
-						render={<a href={authorizeUrl} />}
+						render={<a href={`/api/auth/oauth2/authorize?${authorizeQuery}`} />}
 					>
 						<LogIn className="size-4" />
 						Continuer

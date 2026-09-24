@@ -1,6 +1,5 @@
-import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod/v3";
+import type { AuthInfo, McpServer } from "@modelcontextprotocol/server";
+import { z } from "zod";
 import { handleApiRequest } from "~/lib/api";
 import { normalizeMcpCode } from "~/lib/mcp-code";
 import {
@@ -60,25 +59,6 @@ interface ApiRouteNode {
 	$segment?: string;
 }
 
-type McpToolResult = {
-	content: Array<{ type: "text"; text: string }>;
-};
-
-type McpToolHandler = (
-	args: Record<string, unknown>,
-	extra: { authInfo?: AuthInfo },
-) => Promise<McpToolResult>;
-
-type RegisterTool = (
-	name: string,
-	config: {
-		title: string;
-		description: string;
-		inputSchema: Record<string, z.ZodTypeAny>;
-	},
-	handler: McpToolHandler,
-) => void;
-
 const MAX_BODY_BYTES = 128 * 1024;
 const EXECUTABLE_ROUTE_CATALOG = buildExecutableRouteCatalog();
 
@@ -93,15 +73,15 @@ const ALLOWED_HEADERS = new Set([
 	"location",
 ]);
 
-const searchRoutesInputSchema = {
+const searchRoutesInputSchema = z.object({
 	query: z
 		.string()
 		.describe(
 			"Search text. You may provide a single query or a comma-separated list of queries. Search matches route methods, paths, summaries, descriptions, tags, parameters, and schema summaries.",
 		),
-} satisfies Record<string, z.ZodTypeAny>;
+});
 
-const callRouteInputSchema = {
+const callRouteInputSchema = z.object({
 	method: z
 		.enum(["GET", "POST", "PUT", "PATCH", "DELETE"])
 		.describe("The route method, as listed by search-routes."),
@@ -111,12 +91,15 @@ const callRouteInputSchema = {
 			"The route path as listed by search-routes, placeholders included, for example /api/profile or /api/examples/{exampleId}/workflow.",
 		),
 	params: z
-		.record(z.union([z.string(), z.number(), z.boolean()]))
+		.record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
 		.optional()
 		.describe("Values for the {placeholders} in the path."),
-	query: z.record(z.unknown()).optional().describe("Query string values."),
+	query: z
+		.record(z.string(), z.unknown())
+		.optional()
+		.describe("Query string values."),
 	body: z.unknown().optional().describe("JSON body for POST, PUT and PATCH."),
-} satisfies Record<string, z.ZodTypeAny>;
+});
 
 function requireSession(authInfo?: AuthInfo): McpSession {
 	const session = authInfo?.extra?.session;
@@ -475,10 +458,8 @@ export function createAuthInfo(session: McpSession): AuthInfo {
 	return {
 		token: session.accessToken,
 		clientId: session.clientId,
-		scopes: [],
-		expiresAt: Math.floor(
-			new Date(session.accessTokenExpiresAt).getTime() / 1000,
-		),
+		scopes: session.scopes,
+		expiresAt: session.expiresAt,
 		extra: {
 			session,
 		},
@@ -495,8 +476,7 @@ function buildExecutableRouteCatalog(): CatalogEntry[] {
 }
 
 export function registerMcpTools(server: McpServer): void {
-	const registerTool = server.registerTool.bind(server) as RegisterTool;
-	registerTool(
+	server.registerTool(
 		"search-routes",
 		{
 			title: "Search Routes",
@@ -505,9 +485,6 @@ export function registerMcpTools(server: McpServer): void {
 			inputSchema: searchRoutesInputSchema,
 		},
 		async ({ query }) => {
-			if (typeof query !== "string") {
-				throw new Error("Missing search query");
-			}
 			const normalizedQueries = Array.from(
 				new Set(
 					query
@@ -540,7 +517,7 @@ export function registerMcpTools(server: McpServer): void {
 		},
 	);
 
-	registerTool(
+	server.registerTool(
 		"call-route",
 		{
 			title: "Call Route",
@@ -548,10 +525,10 @@ export function registerMcpTools(server: McpServer): void {
 				'Call one API route as the signed-in user and get back its status and body. Use `search-routes` first to find the route and its input. Example: `{ "method": "GET", "path": "/api/profile" }`.',
 			inputSchema: callRouteInputSchema,
 		},
-		async (input, extra) => {
+		async (input, ctx) => {
 			const envelope = await executeApiRoute(
 				input as ExecuteInput,
-				extra.authInfo,
+				ctx.http?.authInfo,
 			);
 			return {
 				content: [{ type: "text", text: JSON.stringify(envelope, null, 2) }],
@@ -564,7 +541,7 @@ export function registerMcpTools(server: McpServer): void {
 		return;
 	}
 
-	registerTool(
+	server.registerTool(
 		"execute",
 		{
 			title: "Execute Code",
@@ -572,16 +549,13 @@ export function registerMcpTools(server: McpServer): void {
 				'Execute JavaScript inside a Cloudflare dynamic worker sandbox. The sandbox exposes an `api.*` proxy derived from executable OpenAPI routes and a `dictionary` object copied from this tool input. Use `search-routes` first to discover available routes and their input/output types. Put string-heavy or nested payloads in `dictionary`, then reference them from code, for example `code: "await api.examples.exampleId.workflow.post({ params: { exampleId: dictionary.exampleId }, query: { q: dictionary.q }, body: dictionary.body })"` with `dictionary: { "exampleId": "sample", "q": "hello", "body": { "message": "hello", "priority": "high" } }`. Route method calls accept an object with optional `params`, `query`, `headers`, and `body`. Parameterized path segments become plain parameter-name properties in the proxy. Code is normalized before execution, so fenced code blocks, expressions, top-level await, function declarations, and export defaults are accepted.',
 			inputSchema: executeInputSchema,
 		},
-		async ({ code, dictionary }, extra) => {
-			if (typeof code !== "string") {
-				throw new Error("Missing code");
-			}
+		async ({ code, dictionary }, ctx) => {
 			const executionDictionary = getExecutionDictionary(dictionary);
-			requireSession(extra.authInfo);
+			requireSession(ctx.http?.authInfo);
 			const execution = await executeSandboxedCode(
 				code,
 				executionDictionary,
-				extra.authInfo,
+				ctx.http?.authInfo,
 			);
 			return {
 				content: [
@@ -594,7 +568,7 @@ export function registerMcpTools(server: McpServer): void {
 		},
 	);
 
-	registerTool(
+	server.registerTool(
 		"normalize-code",
 		{
 			title: "Normalize Code",
@@ -603,9 +577,6 @@ export function registerMcpTools(server: McpServer): void {
 			inputSchema: codeInputSchema,
 		},
 		async ({ code }) => {
-			if (typeof code !== "string") {
-				throw new Error("Missing code");
-			}
 			return {
 				content: [
 					{

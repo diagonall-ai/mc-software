@@ -7,11 +7,7 @@ import {
 } from "@tanstack/react-start/server";
 import { getAgentByName } from "agents";
 import { resolveAuthSession } from "~/lib/api-auth";
-import {
-	handleOAuthAuthorizationServer,
-	handleOAuthOptions,
-	handleOAuthProtectedResource,
-} from "~/lib/mcp-oauth";
+import { handler as authHandler } from "~/lib/auth-server";
 import { runScheduledJobs } from "~/worker/scheduled";
 
 export { Assistant } from "~/agents/assistant";
@@ -28,24 +24,15 @@ function createServerEntry(entry: ServerEntry): ServerEntry {
 		async fetch(request, opts) {
 			const url = new URL(request.url);
 
-			// Handle .well-known discovery endpoints before TanStack Start routing
-			if (
-				url.pathname === "/.well-known/oauth-authorization-server" ||
-				url.pathname === "/.well-known/oauth-authorization-server/api/auth"
-			) {
-				if (request.method === "OPTIONS") {
-					return handleOAuthOptions();
+			// OAuth discovery for MCP clients: Better Auth serves these documents
+			// once the request reaches its handler. Clients from before path-based
+			// discovery ask the bare URL, which gets the issuer's document.
+			if (url.pathname.startsWith("/.well-known/")) {
+				if (url.pathname === "/.well-known/oauth-authorization-server") {
+					url.pathname = "/.well-known/oauth-authorization-server/api/auth";
+					return authHandler(new Request(url, request));
 				}
-				return handleOAuthAuthorizationServer(url.origin);
-			}
-			if (
-				url.pathname === "/.well-known/oauth-protected-resource" ||
-				url.pathname === "/.well-known/oauth-protected-resource/api/mcp"
-			) {
-				if (request.method === "OPTIONS") {
-					return handleOAuthOptions();
-				}
-				return handleOAuthProtectedResource(url.origin);
+				return authHandler(request);
 			}
 
 			// The assistant chat (WebSocket and HTTP). The signed-in user picks the

@@ -4,7 +4,7 @@ import {
 	extractBearerApiKey,
 	resolveAuthSession,
 } from "~/lib/api-auth";
-import { auth } from "~/lib/auth";
+import { getMcpSession } from "~/lib/auth";
 import type { McpSession } from "~/lib/rest-auth";
 
 export type ApiAuthState =
@@ -51,9 +51,7 @@ async function resolveApiAuth(request: Request): Promise<ApiAuthState | null> {
 		};
 	}
 
-	const mcpSession = await auth.api.getMcpSession({
-		headers: request.headers,
-	});
+	const mcpSession = await getMcpSession(request);
 
 	if (!mcpSession) {
 		return null;
