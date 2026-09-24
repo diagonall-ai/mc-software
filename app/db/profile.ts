@@ -1,3 +1,4 @@
+import { ORPCError } from "@orpc/server";
 import { eq } from "drizzle-orm";
 import { db } from "~/db/client";
 import { user } from "~/db/schema";
@@ -26,7 +27,7 @@ export async function getViewerProfile(userId: string): Promise<ViewerProfile> {
 		.limit(1);
 
 	if (!row) {
-		throw new Error("User not found");
+		throw new ORPCError("NOT_FOUND", { message: "User not found" });
 	}
 
 	return row;
@@ -49,7 +50,9 @@ export async function updateViewerProfile(
 			.limit(1);
 
 		if (existingUser && existingUser.id !== userId) {
-			throw new Error("Username is already taken");
+			throw new ORPCError("CONFLICT", {
+				message: "Username is already taken",
+			});
 		}
 	}
 
@@ -76,9 +79,10 @@ function normalizeUsername(value: string) {
 	}
 
 	if (!/^[a-z0-9_-]{3,32}$/.test(normalizedValue)) {
-		throw new Error(
-			"Username must be 3-32 characters and use letters, numbers, hyphens, or underscores",
-		);
+		throw new ORPCError("BAD_REQUEST", {
+			message:
+				"Username must be 3-32 characters and use letters, numbers, hyphens, or underscores",
+		});
 	}
 
 	return normalizedValue;

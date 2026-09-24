@@ -20,7 +20,6 @@ import {
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { toast } from "~/components/ui/toast";
-import { updateViewerProfileFn } from "~/lib/profile.functions";
 
 type ProfileUser =
 	| {
@@ -42,7 +41,13 @@ type ProfileDraft = {
 /**
  * Renders a lightweight profile settings surface for the authenticated user.
  */
-export function ProfileSettingsPage({ user }: { user: ProfileUser }) {
+export function ProfileSettingsPage({
+	onSave,
+	user,
+}: {
+	onSave: (draft: ProfileDraft) => Promise<void>;
+	user: ProfileUser;
+}) {
 	const [draft, setDraft] = useState<ProfileDraft>(createProfileDraft(user));
 	const [isSaving, setIsSaving] = useState(false);
 
@@ -63,7 +68,7 @@ export function ProfileSettingsPage({ user }: { user: ProfileUser }) {
 		setIsSaving(true);
 
 		try {
-			await updateViewerProfileFn({ data: draft });
+			await onSave(draft);
 			toast.add({ title: "Profil mis à jour", type: "success" });
 		} catch (error) {
 			toast.add({

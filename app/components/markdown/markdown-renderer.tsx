@@ -17,7 +17,8 @@ export const MarkdownRenderer = memo(
 	({ className, ...props }: MarkdownRendererProps) => (
 		<Streamdown
 			className={cn(
-				"size-full text-sm leading-6 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+				// Links in the text color: the yellow primary is unreadable as text.
+				"size-full text-sm leading-6 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_[data-streamdown=link]]:text-foreground",
 				className,
 			)}
 			plugins={streamdownPlugins}

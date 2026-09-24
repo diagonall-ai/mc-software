@@ -16,6 +16,7 @@ import {
 	Layers3,
 	LogOut,
 	Moon,
+	Sparkles,
 	Sun,
 	UserRound,
 } from "lucide-react";
@@ -66,6 +67,7 @@ import { cn } from "~/lib/utils";
 
 const dashboardLinks = [
 	{ to: "/dashboard", label: "Dashboard", icon: Home },
+	{ to: "/dashboard/assistant", label: "Assistant", icon: Sparkles },
 	{ to: "/dashboard/design-system", label: "Design System", icon: Layers3 },
 ] as const;
 

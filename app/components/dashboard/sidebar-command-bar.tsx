@@ -5,6 +5,7 @@ import {
 	Home,
 	LogOut,
 	Moon,
+	Sparkles,
 	Sun,
 	UserRound,
 } from "lucide-react";
@@ -168,6 +169,18 @@ function DashboardCommandDialog({
 					>
 						<Home className="size-4" />
 						Tableau de bord
+					</CommandItem>
+					<CommandItem
+						onSelect={() => {
+							onOpenChange(false);
+							void navigate({
+								to: "/dashboard/assistant",
+								viewTransition: true,
+							});
+						}}
+					>
+						<Sparkles className="size-4" />
+						Assistant
 					</CommandItem>
 					<CommandItem
 						onSelect={() => {

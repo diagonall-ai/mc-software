@@ -30,7 +30,28 @@
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "drizzle/migrations"
     }
-  ]
+  ],
+
+  // =============================================================================
+  // Workers AI
+  // =============================================================================
+  // Models run on Cloudflare only: AI calls fail in local dev (vite.config.ts
+  // keeps dev offline) and work once the app is deployed.
+  // Reference: https://developers.cloudflare.com/workers-ai/
+  "ai": { "binding": "AI" },
+
+  // =============================================================================
+  // Durable Objects
+  // =============================================================================
+  // One `Assistant` (app/agents/assistant.ts) per signed-in user keeps that
+  // user's chat. Every class is exported from app/server.ts. To add a class
+  // (for example app/worker/rate-limiter.ts), add a binding here and a NEW
+  // migration entry with the next tag; never edit a deployed migration.
+  // Reference: https://developers.cloudflare.com/durable-objects/
+  "durable_objects": {
+    "bindings": [{ "name": "Assistant", "class_name": "Assistant" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Assistant"] }]
 
   // =============================================================================
   // Cron Triggers (Scheduled Events)
@@ -54,30 +75,4 @@
   //     "*/5 * * * *"    // Every 5 minutes: health checks (use sparingly)
   //   ]
   // },
-
-  // =============================================================================
-  // Durable Objects
-  // =============================================================================
-  // Uncomment to enable Durable Objects. Each binding creates a namespace you can
-  // access via env.BINDING_NAME in your Worker (see app/worker/rate-limiter.ts).
-  //
-  // After uncommenting, deploy with `wrangler deploy`. The migration runs
-  // automatically on first deploy to register the DO class.
-  //
-  // Reference: https://developers.cloudflare.com/durable-objects/
-  //
-  // "durable_objects": {
-  //   "bindings": [
-  //     {
-  //       "name": "RATE_LIMITER",
-  //       "class_name": "RateLimiter"
-  //     }
-  //   ]
-  // },
-  // "migrations": [
-  //   {
-  //     "tag": "v1",
-  //     "new_classes": ["RateLimiter"]
-  //   }
-  // ]
 }

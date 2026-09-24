@@ -9,6 +9,9 @@ export default defineConfig({
 	plugins: [
 		cloudflare({
 			viteEnvironment: { name: "ssr" },
+			// Keep local dev offline, so it starts without a Cloudflare login.
+			// Workers AI has no local version: AI calls work once deployed.
+			remoteBindings: false,
 		}),
 		tanstackStart({
 			srcDirectory: "app",
