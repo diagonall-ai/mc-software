@@ -14,12 +14,13 @@ If you are an AI agent, start with [AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md). It 
 |-------|-----------|
 | Framework | TanStack Start, Vite, React |
 | Routing | TanStack Router file-based routes |
-| Machine API | oRPC + OpenAPI |
+| Machine API | oRPC + OpenAPI + MCP |
 | Database | Cloudflare D1 through the `env.DB` binding |
 | ORM | Drizzle ORM + Drizzle Kit migrations |
 | Auth | Better Auth + `@better-auth/drizzle-adapter` |
 | Styling | Tailwind CSS v4, shadcn/ui components |
 | Edge Runtime | Cloudflare Workers |
+| AI | Workers AI: TanStack AI for one-off tasks, Cloudflare Think for agents |
 | Integrations | Effect v4 shells for third-party APIs (`INTEGRATIONS.md`) |
 | Tooling | pnpm, Biome, TypeScript |
 
@@ -38,9 +39,10 @@ pnpm dlx auth@latest generate --config app/lib/auth-server.ts --output app/db/au
 pnpm drizzle-kit generate
 pnpm wrangler d1 migrations apply DB --local --config wrangler.jsonc
 pnpm run doctor
-pnpm seed:dev
 pnpm dev
 ```
+
+With the dev server running, `pnpm seed:dev` creates the local account `test@test.com` / `testtest`. AI features only work on the deployed app.
 
 The configured local app origin is `http://localhost:3934`. If Vite starts on a different port, use the URL printed by `pnpm dev` and update `.dev.vars` to match it.
 
@@ -61,8 +63,9 @@ Use Wrangler for remote D1 migrations and Worker secrets:
 pnpm wrangler d1 migrations apply DB --remote --config wrangler.jsonc
 pnpm wrangler secret put BETTER_AUTH_SECRET
 pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD
-pnpm build
-pnpm wrangler deploy --dry-run --config dist/server/wrangler.json
+pnpm wrangler secret put SITE_URL
+pnpm wrangler secret put TRUSTED_ORIGINS
+pnpm deploy:dry-run
 pnpm run deploy
 ```
 
@@ -73,6 +76,7 @@ Do not store secrets in `wrangler.jsonc`.
 ```text
 .
 ├── app/
+│   ├── agents/                # Cloudflare Think agents (Durable Objects)
 │   ├── db/                    # Drizzle schema, client, and repositories
 │   ├── integrations/          # Third-party API shells (see INTEGRATIONS.md)
 │   ├── lib/
@@ -80,6 +84,7 @@ Do not store secrets in `wrangler.jsonc`.
 │   │   ├── orpc/               # Canonical contract and implementation
 │   │   └── mcp.ts              # OpenAPI-driven MCP bridge
 │   ├── routes/                 # TanStack Router routes and loaders
+│   ├── server.ts               # Worker entry: MCP OAuth discovery, agents, then TanStack Start
 │   └── worker/                 # Cloudflare Worker examples/modules
 ├── drizzle/migrations/         # Generated SQL migrations
 ├── AI_AGENT_GUIDE.md           # Fast path for future AI agents
@@ -102,8 +107,8 @@ Do not store secrets in `wrangler.jsonc`.
 
 The app exposes:
 
-- `GET /api/v1/openapi.json` for the OpenAPI spec
-- `GET /api/v1/docs` for the API reference
+- `GET /api/openapi.json` for the OpenAPI spec
+- `GET /api/docs` for the API reference
 - `/api/mcp` for MCP
 - `/api/auth/*` for Better Auth
 
@@ -130,7 +135,8 @@ Run before finishing backend or schema work:
 
 ```bash
 pnpm lint
+pnpm deploy:dry-run
 pnpm typecheck
-pnpm build
-pnpm wrangler deploy --dry-run --config dist/server/wrangler.json
 ```
+
+The build generates the route types that `typecheck` needs.

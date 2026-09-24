@@ -109,17 +109,15 @@ Before deploying, verify:
 4. Confirm login, signout, and that the sidebar shows the signed-in user's name.
 5. Confirm profile update.
 6. Confirm the example API route or the first real domain route once added.
-7. Confirm API key auth on `/api/v1/*`.
+7. Confirm API key auth on `/api/*`.
 8. Confirm MCP auth and tool listing on `/api/mcp`.
 
 ## 8. Machine Access Verification
 
-After creating an account, create an API key from the dashboard account menu and verify rejection without a key:
+After creating an account, create an API key from the dashboard account menu and verify rejection without a key (expect `401` with a `WWW-Authenticate` header):
 
 ```bash
-curl -X POST "http://localhost:3934/api/mcp" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+curl -i "http://localhost:3934/api/mcp"
 ```
 
 Then verify success with a key:
@@ -128,13 +126,14 @@ Then verify success with a key:
 curl -X POST "http://localhost:3934/api/mcp" \
   -H "x-api-key: bd_your_key" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
 ```
 
 The API reference should load at:
 
 ```text
-http://localhost:3934/api/v1/docs
+http://localhost:3934/api/docs
 ```
 
 ## 9. Remote Cloudflare Setup
@@ -174,12 +173,12 @@ pnpm wrangler d1 migrations apply DB --remote --config wrangler.jsonc
 
 ```bash
 pnpm lint
-pnpm typecheck
-pnpm build
 pnpm run doctor:full
-pnpm wrangler deploy --dry-run --config dist/server/wrangler.json
+pnpm typecheck
 pnpm run deploy
 ```
+
+`doctor:full` builds and runs the deploy dry run; the build also generates the route types that `typecheck` needs. Use `pnpm run deploy`: plain `pnpm deploy` is a different pnpm command.
 
 ## Troubleshooting
 

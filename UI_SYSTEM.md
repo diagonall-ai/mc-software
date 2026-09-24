@@ -137,7 +137,7 @@ Preferred order:
 3. if the CLI asks to overwrite an existing file, answer no unless you mean to update that component
 4. verify imports and aliases
 5. make sure the component uses the existing token system
-6. run `pnpm lint`, `pnpm typecheck`, and `pnpm build`
+6. run `pnpm lint`, `pnpm deploy:dry-run`, and `pnpm typecheck` (the build generates the route types)
 
 Base UI composition (not Radix):
 
@@ -256,8 +256,8 @@ Always run:
 
 ```bash
 pnpm lint
+pnpm deploy:dry-run
 pnpm typecheck
-pnpm build
 ```
 
 If the change affects navigation, auth, or responsive behavior, also verify it in the browser.

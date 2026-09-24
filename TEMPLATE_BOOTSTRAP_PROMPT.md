@@ -121,8 +121,6 @@ Use `pnpm` for all package management in this template.
    - `CLAUDE.md`
    - `AI_AGENT_GUIDE.md`
    - `BOOTSTRAP.md`
-   - `FEATURES.md`
-   - `DATA_MODEL.md`
    - `UI_SYSTEM.md`
 5. Rename the template for this app: set `name` in `package.json` and `wrangler.jsonc` to the app slug, and replace `[TOREPLACE]` in `.env.local` with a readable app name. Every app needs its own Worker name, otherwise deploying overwrites another app on the same Cloudflare account.
 6. Bootstrap the template exactly as instructed by the repository.
@@ -242,8 +240,7 @@ While implementing the requested application:
 - use `AI_AGENT_GUIDE.md` for common page, capability, table, auth, and verification recipes
 - reuse existing components and patterns before creating new ones
 - keep UI work aligned with `UI_SYSTEM.md`
-- keep data modeling aligned with `DATA_MODEL.md`
-- keep feature placement aligned with `FEATURES.md`
+- copy the profile feature for new features (see "The Reference Feature" in `CLAUDE.md`)
 - use SSR loaders as the primary source of page data
 - return dashboard header metadata from loaders when the shell needs a title, description, or back button
 - define loading components with skeletons for new pages
@@ -282,8 +279,8 @@ Run:
 
 ```bash
 pnpm lint
-pnpm typecheck
-pnpm build
 pnpm run doctor:full
-pnpm wrangler deploy --dry-run --config dist/server/wrangler.json
+pnpm typecheck
 ```
+
+`doctor:full` builds and runs the deploy dry run; the build also generates the route types that `typecheck` needs.

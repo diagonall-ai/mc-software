@@ -1,248 +1,120 @@
 # AI Agent Guide
 
-This guide is the fast path for an AI agent landing in this repository.
+Step-by-step recipes for this repository. `CLAUDE.md` has the rules; this guide has the steps. The profile feature is the working example behind every recipe.
 
-The repository is a reusable bootstrap template. Your job is to preserve the template boundary first, then build the requested app on top of it only after bootstrap is complete.
+## Read First
 
-## Read Order
+1. `APP_BRIEF.md`: the user's business and the agreed app structure.
+2. The recipe below that matches the task, and the example files it names.
+3. `UI_SYSTEM.md` before building screens, `INTEGRATIONS.md` before connecting a third-party API.
+4. `BOOTSTRAP.md` only when setting up a new copy of the template.
 
-Read these files before changing code:
+## How The App Is Layered
 
-1. `CLAUDE.md` for non-negotiable architecture and anti-drift rules.
-2. `README.md` for stack, commands, and project map.
-3. `BOOTSTRAP.md` when copying this template into a new app.
-4. `FEATURES.md` before adding routes, pages, or capabilities.
-5. `DATA_MODEL.md` before adding tables, repositories, or migrations.
-6. `ROUTING_AND_DATA_FLOW.md` before wiring loaders or mutations.
-7. `UI_SYSTEM.md` before changing UI primitives or dashboard surfaces.
-8. `INTEGRATIONS.md` before connecting a third-party API.
+- `app/routes/`: pages, route guards, loaders, skeletons. No database code and no business rules.
+- `app/lib/orpc/`: the capabilities that users, agents, and API clients call. The OpenAPI docs and the MCP server are generated from it.
+- `app/db/`: D1 tables, repositories, ownership checks.
+- `app/agents/` and `app/lib/ai.server.ts`: AI on Workers AI.
+- `app/integrations/`: third-party API shells.
+- `wrangler.jsonc`: Cloudflare bindings. `app/server.ts`: the Worker entry.
 
-If those docs conflict, prefer `CLAUDE.md` for boundaries and `BOOTSTRAP.md` for setup sequence.
+Server-only: `app/db/*`, `app/lib/auth-server.ts`, `app/lib/orpc/router.ts`, `*.server.ts`, and anything importing `cloudflare:workers`. Route components never import them; they go through `context.getOrpc()`.
 
-## Mental Model
+## Add A Feature, End To End
 
-The template has four layers:
+Example: a list of suppliers the user tracks.
 
-- `app/routes/` composes pages, route guards, SSR loaders, and loading skeletons.
-- `app/lib/orpc/` defines the canonical user, external API, and MCP capability surface.
-- `app/db/` owns D1/Drizzle schema, repositories, data validation that depends on persistence, and ownership checks.
-- Cloudflare bindings in `wrangler.jsonc` provide runtime infrastructure.
+1. **Table.** Add it to `app/db/schema.ts` (or a file it exports) with a `userId` column and indexes. Run `pnpm drizzle-kit generate`, read the SQL, and apply it locally.
+2. **Repository.** Create `app/db/suppliers.ts` like `app/db/profile.ts`: every function takes the user id and filters on it.
+3. **Capability.** Add `suppliers.list`, `suppliers.create`, and so on to `app/lib/orpc/contract.ts`, with paths under `/api/suppliers`. Implement them in `app/lib/orpc/router.ts`, starting each handler with `requireAuthenticatedActor`.
+4. **Page.** Create `app/routes/dashboard.suppliers.tsx` like `app/routes/dashboard.profile.tsx`: loader through `context.getOrpc()`, header, skeleton, error component. Mutations call `getOrpc()`, then `router.invalidate()`.
+5. **Navigation.** Add the page to `dashboardLinks` in `app/routes/dashboard.tsx` and to the ⌘K list in `app/components/dashboard/sidebar-command-bar.tsx`.
+6. **Check.** Run the verification in `CLAUDE.md`, open the page in the preview, and try the new routes at `/api/docs`.
 
-Do not bypass these layers. If a feature has persistence or ownership, route files should call capabilities; they should not become database controllers.
-
-## Current Stack Contract
-
-- Use `pnpm` only.
-- Use D1 through `env.DB` only.
-- Use Drizzle from `drizzle-orm/d1`.
-- Use Better Auth with the Drizzle adapter.
-- Use route loaders for first paint.
-- Use oRPC for real feature capabilities.
-- Use generated OpenAPI and MCP from the oRPC surface.
-- Use Cloudflare primitives deliberately: D1 for relational data, R2 for blobs, Durable Objects for stateful coordination, Queues for async work.
-- Use `pnpm run doctor` and `pnpm run doctor:full` to verify bootstrap health.
-- Use `pnpm seed:dev` for the local test account instead of raw database inserts.
-
-## Bootstrap A New App
-
-When this template is copied into a new workspace:
-
-1. Put the template files at the workspace root, not inside a nested folder.
-2. Remove inherited `.git` metadata and initialize fresh history.
-3. Remove inherited `origin`.
-4. Install with `pnpm install`.
-5. Create a new D1 database:
-
-```bash
-pnpm wrangler d1 create <app-slug> --binding DB --update-config --config wrangler.jsonc
-```
-
-6. Generate Better Auth schema if plugins changed:
-
-```bash
-pnpm dlx auth@latest generate --config app/lib/auth-server.ts --output app/db/auth.schema.ts --yes
-```
-
-7. Generate and inspect Drizzle migrations:
-
-```bash
-pnpm drizzle-kit generate
-```
-
-8. Apply migrations locally and remotely:
-
-```bash
-pnpm wrangler d1 migrations apply DB --local --config wrangler.jsonc
-pnpm wrangler d1 migrations apply DB --remote --config wrangler.jsonc
-```
-
-9. Set Worker secrets with `pnpm wrangler secret put`.
-10. Run `pnpm run doctor`.
-11. Run `pnpm seed:dev` against the local app after `pnpm dev` is running.
-12. Deploy the scaffold before asking what to build.
-13. Ask whether to create a new GitHub remote only after deployment details are known.
-
-Never push a bootstrapped app back to the template repository.
-
-## Local Development Origin
-
-The Vite dev server is configured for `http://localhost:3934`.
-
-If the server starts on another port, use the printed Vite URL as the truth and update local `.dev.vars` accordingly:
-
-```env
-SITE_URL=http://localhost:3934
-TRUSTED_ORIGINS=http://localhost:3934
-```
-
-`auth-server.ts` also allows `http://localhost:*` and `http://127.0.0.1:*` as trusted origins for local development, but `SITE_URL` should still match the canonical local origin used by auth callbacks.
-
-## Add A Dashboard Page
-
-1. Create `app/routes/dashboard.<name>.tsx`.
-2. Use `createFileRoute`.
-3. Add `staticData.dashboardHeader` or return equivalent metadata from the loader.
-4. Add a `pendingComponent` skeleton.
-5. Keep JSX composition in the route; push data and business rules down.
-
-Minimal shape:
+A minimal page:
 
 ```tsx
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { RouteErrorComponent } from "~/components/route-error-state";
 import { Skeleton } from "~/components/ui/skeleton";
 
-export const Route = createFileRoute("/dashboard/example")({
-  staticData: {
-    dashboardHeader: {
-      title: "Example",
-      description: "Example page description",
-    },
-  },
-  pendingComponent: ExampleSkeleton,
-  loader: async ({ context }) => {
-    const api = context.getOrpc();
-    return {
-      // await api.someCapability.list(...)
-    };
-  },
-  component: ExamplePage,
+export const Route = createFileRoute("/dashboard/suppliers")({
+	loader: ({ context }) => context.getOrpc().suppliers.list(),
+	staticData: {
+		dashboardHeader: {
+			title: "Fournisseurs",
+			description: "Les fournisseurs que vous suivez.",
+		},
+	},
+	pendingComponent: () => <Skeleton className="h-64 rounded-xl" />,
+	errorComponent: RouteErrorComponent,
+	component: SuppliersPage,
 });
 
-function ExamplePage() {
-  return <div />;
+function SuppliersPage() {
+	const suppliers = Route.useLoaderData();
+	const { getOrpc } = Route.useRouteContext();
+	const router = useRouter();
+
+	async function addSupplier(name: string) {
+		await getOrpc().suppliers.create({ name });
+		await router.invalidate();
+	}
+
+	return null; // compose the page from app/components/ui
 }
-
-function ExampleSkeleton() {
-  return <Skeleton className="h-64 rounded-xl" />;
-}
 ```
 
-If the page should appear in navigation, add it to `dashboardLinks` in `app/routes/dashboard.tsx`.
+Actions for the page header go in `DashboardHeaderActionsPortal`, and footer content in `DashboardFooterLeftPortal` or `DashboardFooterRightPortal`, from `~/components/dashboard/shell-portals`.
 
-Use the shared 404, forbidden, and server-error states from `app/components/route-error-state.tsx` unless the route has a domain-specific recovery action.
+## Add A One-Off AI Task
 
-## Add A Feature Capability
+For summarizing, classifying, extracting, or drafting, without memory or tools.
 
-Use this path when the feature should be available to the UI, REST clients, MCP tools, or future agents.
+1. Add a function next to `briefText` in `app/lib/ai.server.ts`: one TanStack AI `chat()` call with an `outputSchema`, a Zod schema with a `.describe()` on each field.
+2. Call it from an oRPC handler, like `ai.brief` in `app/lib/orpc/router.ts`, or from the server code that needs it, such as a repository saving a record.
+3. Tell the user it only works once deployed. Deploy with `pnpm run deploy` and test it there.
 
-1. Define input/output schemas and route shape in `app/lib/orpc/contract.ts`.
-2. Implement the handler in `app/lib/orpc/router.ts`.
-3. Require the signed-in user with `requireAuthenticatedActor` from `app/lib/orpc/authorization.ts`.
-4. Put database reads/writes and ownership checks in `app/db/<feature>.ts`.
-5. Call the capability from route loaders with `context.getOrpc()`.
-6. Use a typed client mutation after hydration and explicitly revalidate.
+## Give The Assistant A Tool
 
-Do not add hand-written REST handlers for feature capabilities. `/api/v1/*` is generated from oRPC.
+1. In `getTools()` in `app/agents/assistant.ts`, add a `tool({ description, inputSchema, execute })`. `execute` calls an `app/db/` repository with `this.name` as the user id.
+2. Write the description for the model: what the tool returns and when to use it.
+3. Deploy, then try it on the assistant page.
 
-## Add A D1 Table
+For a second agent, copy the `Assistant` class, export it from `app/server.ts`, route its path there behind the same session check, add its binding and a new migration tag in `wrangler.jsonc`, and regenerate the types.
 
-1. Add a focused schema export in `app/db/schema.ts` or a file exported by it.
-2. Include a `userId` ownership column on user-owned data.
-3. Add indexes for ownership and common list filters.
-4. Create a repository in `app/db/<feature>.ts`.
-5. Generate a migration:
+## Connect A Third-Party API
 
-```bash
-pnpm drizzle-kit generate
-```
+Follow `INTEGRATIONS.md`.
 
-6. Inspect the SQL in `drizzle/migrations/`.
-7. Apply locally:
+## Local Development
 
-```bash
-pnpm wrangler d1 migrations apply DB --local --config wrangler.jsonc
-```
-
-8. Apply remotely only during bootstrap/deploy/release work:
-
-```bash
-pnpm wrangler d1 migrations apply DB --remote --config wrangler.jsonc
-```
-
-Never drop, truncate, or destructively migrate a database without explicit user confirmation.
-
-## Auth And Ownership Pattern
-
-Use Better Auth as the identity source.
-
-Server-side code should:
-
-- derive the current user from the Better Auth session or API key session
-- support MCP OAuth sessions through the authenticated oRPC context
-- use `requireAuthenticatedActor` from `app/lib/orpc/authorization.ts`
-- scope every query to the actor's `userId` in repositories/services
-- reject unauthorized access with an error
-
-Do not:
-
-- trust client-provided `userId`
-- hide auth failures by returning `[]`, `null`, or `{}` as fake success
-
-## Client/Server Boundary
-
-Safe in client components:
-
-- UI primitives from `app/components/ui/`
-- browser oRPC client from `app/lib/orpc/client`
-- React state and presentation-only transforms
-
-Server-only:
-
-- `app/db/*`
-- `app/lib/auth-server.ts`
-- `app/lib/orpc/router.ts`
-- direct `cloudflare:workers` imports
-- Worker bindings such as `env.DB`
-
-If a loader needs data, use `context.getOrpc()`. Do not import `app/db/*` directly into route components.
+- `pnpm dev` serves `http://localhost:3934`. If Vite picks another port, update `SITE_URL` and `TRUSTED_ORIGINS` in `.dev.vars`.
+- With the dev server running, `pnpm seed:dev` creates the local account `test@test.com` / `testtest`.
+- Everything works offline except AI calls, which need the deployed app.
+- `pnpm run doctor` checks the environment, `wrangler.jsonc`, and migrations. `pnpm run doctor:full` also probes the running app, builds, and runs the deploy dry run.
 
 ## API And MCP Smoke Tests
 
-Unauthenticated MCP should reject:
+The API reference is at `http://localhost:3934/api/docs`, and the spec at `http://localhost:3934/api/openapi.json`.
+
+MCP without credentials must refuse:
+
+```bash
+curl -i "http://localhost:3934/api/mcp"
+```
+
+With an API key (create one from the account menu, "Clés API"), list the tools and call a route through the sandbox:
 
 ```bash
 curl -X POST "http://localhost:3934/api/mcp" \
+  -H "Authorization: Bearer bd_your_key" \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"execute","arguments":{"code":"await api.profile.get()"}}}'
 ```
 
-API-key-backed MCP should work after creating an API key:
-
-```bash
-curl -X POST "http://localhost:3934/api/mcp" \
-  -H "x-api-key: bd_your_key" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
-```
-
-OpenAPI should be available at:
-
-```text
-http://localhost:3934/api/v1/openapi.json
-http://localhost:3934/api/v1/docs
-```
-
-Third-party integrations are tested before they reach the app, against the real service:
+Third-party integrations are tested against the real service before they reach the app:
 
 ```bash
 pnpm integration pennylane listSupplierInvoices '{"limit": 2}'
@@ -250,31 +122,13 @@ pnpm integration pennylane listSupplierInvoices '{"limit": 2}'
 
 See "Test It From The Terminal" in `INTEGRATIONS.md`.
 
-## Anti-Drift Checklist
+## Anti-Drift Search
 
-Before finishing, search for:
-
-```bash
-rg -n "Molteni|molteni|ecomaison|showroom|declaration|npm run|yarn|bun|asChild|radix-ui|@radix-ui|sonner" \
-  CLAUDE.md README.md BOOTSTRAP.md AI_AGENT_GUIDE.md DATA_MODEL.md FEATURES.md ROUTING_AND_DATA_FLOW.md UI_SYSTEM.md TEMPLATE_BOOTSTRAP_PROMPT.md app
-```
-
-Expected allowed matches:
-
-- package-manager names may appear only in instructions saying not to use them.
-- `asChild`, Radix, and `sonner` may appear only in rules saying not to use them (`CLAUDE.md`, `UI_SYSTEM.md`) and in comments inside vendored `app/components/ui/` files.
-
-## Verification
-
-Run:
+Before finishing a template-wide change, search for patterns that must not come back:
 
 ```bash
-pnpm lint
-pnpm typecheck
-pnpm build
-pnpm run doctor
-pnpm run doctor:full
-pnpm wrangler deploy --dry-run --config dist/server/wrangler.json
+rg -n "npm run|yarn |bun |asChild|radix-ui|@radix-ui|sonner|api/v1" \
+  CLAUDE.md README.md BOOTSTRAP.md AI_AGENT_GUIDE.md UI_SYSTEM.md TEMPLATE_BOOTSTRAP_PROMPT.md app
 ```
 
-For schema work, also apply local migrations before claiming success.
+Allowed matches: package managers named in instructions not to use them, `asChild`, Radix, and `sonner` in rules saying not to use them and in comments inside `app/components/ui/`, and third-party URLs in `app/integrations/`.
