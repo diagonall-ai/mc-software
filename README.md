@@ -34,8 +34,7 @@ If you are an AI agent, start with [AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md). It 
 
 ```bash
 pnpm install
-pnpm wrangler d1 create <app-slug> --binding DB --update-config --config wrangler.jsonc
-pnpm dlx auth@latest generate --config app/lib/auth-server.ts --output app/db/auth.schema.ts --yes
+pnpm wrangler d1 create <app-slug> --location weur   # then copy its name and id into wrangler.jsonc
 pnpm drizzle-kit generate
 pnpm wrangler d1 migrations apply DB --local --config wrangler.jsonc
 pnpm run doctor
@@ -61,15 +60,13 @@ Use Wrangler for remote D1 migrations and Worker secrets:
 
 ```bash
 pnpm wrangler d1 migrations apply DB --remote --config wrangler.jsonc
-pnpm wrangler secret put BETTER_AUTH_SECRET
-pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD
-pnpm wrangler secret put SITE_URL
-pnpm wrangler secret put TRUSTED_ORIGINS
+openssl rand -base64 32 | pnpm wrangler secret put BETTER_AUTH_SECRET
+printf '%s' 'your-invitation-code' | pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD
 pnpm deploy:dry-run
 pnpm run deploy
 ```
 
-Do not store secrets in `wrangler.jsonc`.
+Pipe secret values in: without a terminal, `wrangler secret put` stores an empty value. `SITE_URL` and `TRUSTED_ORIGINS` are only needed for a custom domain. The app runs on the Workers Free plan; the MCP code sandbox (`worker_loaders` in `wrangler.jsonc`) needs Workers Paid. Do not store secrets in `wrangler.jsonc`.
 
 ## Project Structure
 

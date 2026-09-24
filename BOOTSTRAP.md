@@ -30,13 +30,13 @@ pnpm install
 
 ## 2. Create The D1 Database
 
-Choose an app slug from the folder/project name, then create and bind D1:
+Choose an app slug from the app's name, then create the database in Western Europe:
 
 ```bash
-pnpm wrangler d1 create <app-slug> --binding DB --update-config --config wrangler.jsonc
+pnpm wrangler d1 create <app-slug> --location weur
 ```
 
-Verify that `wrangler.jsonc` contains:
+Write the printed `database_name` and `database_id` into the existing `DB` entry of `wrangler.jsonc` (`--update-config` would add a second `DB` entry instead). It must read:
 
 ```jsonc
 "d1_databases": [
@@ -60,7 +60,7 @@ SITE_URL=http://localhost:3934
 TRUSTED_ORIGINS=http://localhost:3934
 ```
 
-`SUPER_ADMIN_SIGNUP_PASSWORD=admin123` is acceptable only as a temporary bootstrap password. Change it before any real or public deployment.
+`admin123` is the local invitation code only. The template is public, so every deployed app gets its own code (see section 9); sign-up stays closed wherever no code is set.
 
 ## 4. Generate Auth Schema And Migrations
 
@@ -145,23 +145,18 @@ pnpm wrangler login
 pnpm wrangler whoami
 ```
 
-If Wrangler lists multiple Cloudflare accounts, choose the target account before
-remote D1 commands or deploys by setting `CLOUDFLARE_ACCOUNT_ID` locally or by
-adding the chosen account id to the generated Wrangler config for the new app.
+If Wrangler lists multiple Cloudflare accounts, ask which one to use and write its id as `"account_id"` in `wrangler.jsonc` (an environment variable does not persist between commands run by an agent).
 
-Set deployed Worker secrets:
+Set deployed Worker secrets. Pipe each value in: without a terminal, `wrangler secret put` stores an empty value.
 
 ```bash
-pnpm wrangler secret put BETTER_AUTH_SECRET
-pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD
+openssl rand -base64 32 | pnpm wrangler secret put BETTER_AUTH_SECRET
+printf '%s' 'soleil-velo-42' | pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD
 ```
 
-If the deployed site URL is known, also set:
+The second value is the app's invitation code: a new one per app, easy to type. `SITE_URL` and `TRUSTED_ORIGINS` are only needed for a custom domain; on workers.dev, sign-in trusts the address the app is served from. The Worker Loader binding (MCP `execute`) stays commented out in `wrangler.jsonc` unless the account is on Workers Paid.
 
-```bash
-pnpm wrangler secret put SITE_URL
-pnpm wrangler secret put TRUSTED_ORIGINS
-```
+On the first deploy of an account without a workers.dev subdomain, Wrangler prints a link to register one: open it, pick a name, and deploy again.
 
 Apply remote migrations:
 
@@ -184,6 +179,7 @@ pnpm run deploy
 
 - If auth says `BETTER_AUTH_SECRET` is missing, `.dev.vars` or Worker secrets are not configured for the runtime being used.
 - If D1 queries fail locally, confirm local migrations were applied with `--local`.
-- If the deployed Worker boots but auth fails, confirm `SITE_URL` and `TRUSTED_ORIGINS` match the public origin.
+- If sign-up says the invitation code is wrong, confirm `SUPER_ADMIN_SIGNUP_PASSWORD` was set with a pipe (`pnpm wrangler secret list` shows it exists). On a custom domain, confirm `SITE_URL` and `TRUSTED_ORIGINS` match it.
+- If the deploy fails with error 10195, the account is on the Free plan and `worker_loaders` is enabled: comment it out again.
 - If a route needs first-paint data, put it in the TanStack loader and return any dashboard header metadata from that loader.
-- If `pnpm run doctor` reports multiple `DB` bindings, Wrangler probably appended a second D1 stanza during `d1 create --update-config`; collapse the config back to one `DB` binding.
+- If `pnpm run doctor` reports multiple `DB` bindings, `d1 create --update-config` appended a second one: keep a single `DB` entry with the new name and id.

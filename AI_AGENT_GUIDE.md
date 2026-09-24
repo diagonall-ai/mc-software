@@ -24,8 +24,8 @@ Server-only: `app/db/*`, `app/lib/auth-server.ts`, `app/lib/orpc/router.ts`, `*.
 
 Example: a list of suppliers the user tracks.
 
-1. **Table.** Add it to `app/db/schema.ts` (or a file it exports) with a `userId` column and indexes. Run `pnpm drizzle-kit generate`, read the SQL, and apply it locally.
-2. **Repository.** Create `app/db/suppliers.ts` like `app/db/profile.ts`: every function takes the user id and filters on it.
+1. **Table.** Add it to `app/db/schema.ts` (or a file it exports). Everyone signed in shares it, so give it `createdBy` (and `updatedBy`) referencing the user, plus indexes on the common filters. Run `pnpm drizzle-kit generate`, read the SQL, and apply it locally.
+2. **Repository.** Create `app/db/suppliers.ts` like `app/db/profile.ts`. Functions that write take the signed-in user's id for `createdBy`; reads return every row. Only personal data (settings, drafts) is filtered on the user.
 3. **Capability.** Add `suppliers.list`, `suppliers.create`, and so on to `app/lib/orpc/contract.ts`, with paths under `/api/suppliers`. Implement them in `app/lib/orpc/router.ts`, starting each handler with `requireAuthenticatedActor`.
 4. **Page.** Create `app/routes/dashboard.suppliers.tsx` like `app/routes/dashboard.profile.tsx`: loader through `context.getOrpc()`, header, skeleton, error component. Mutations call `getOrpc()`, then `router.invalidate()`.
 5. **Navigation.** Add the page to `dashboardLinks` in `app/routes/dashboard.tsx` and to the ⌘K list in `app/components/dashboard/sidebar-command-bar.tsx`.
@@ -90,6 +90,7 @@ Follow `INTEGRATIONS.md`.
 ## Local Development
 
 - `pnpm dev` serves `http://localhost:3934`. If Vite picks another port, update `SITE_URL` and `TRUSTED_ORIGINS` in `.dev.vars`.
+- Scheduled jobs: see the header of `app/worker/scheduled.ts`. With the dev server running, `curl "http://localhost:3934/cdn-cgi/handler/scheduled?cron=0+6+*+*+1"` runs the job for that pattern.
 - With the dev server running, `pnpm seed:dev` creates the local account `test@test.com` / `testtest`.
 - Everything works offline except AI calls, which need the deployed app.
 - `pnpm run doctor` checks the environment, `wrangler.jsonc`, and migrations. `pnpm run doctor:full` also probes the running app, builds, and runs the deploy dry run.
@@ -104,15 +105,17 @@ MCP without credentials must refuse:
 curl -i "http://localhost:3934/api/mcp"
 ```
 
-With an API key (create one from the account menu, "Clés API"), list the tools and call a route through the sandbox:
+With an API key (create one from the account menu, "Clés API"), call a route through MCP:
 
 ```bash
 curl -X POST "http://localhost:3934/api/mcp" \
   -H "Authorization: Bearer bd_your_key" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"execute","arguments":{"code":"await api.profile.get()"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"call-route","arguments":{"method":"GET","path":"/api/profile"}}}'
 ```
+
+`pnpm smoke` (dev server running, seed account) runs the whole check end to end: API keys in both headers, the MCP OAuth flow with a refresh token, the MCP tools, and 401s for bad credentials. For a deployed app: `EMAIL=... PASSWORD=... pnpm smoke https://your-app.workers.dev`.
 
 Third-party integrations are tested against the real service before they reach the app:
 

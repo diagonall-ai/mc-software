@@ -32,7 +32,7 @@ The user is not technical.
 
 The profile is built the way every feature should be. Copy it:
 
-- `app/db/profile.ts`: the repository. Drizzle queries scoped to a user id, errors as `ORPCError`.
+- `app/db/profile.ts`: the repository. Drizzle queries, errors as `ORPCError`. A profile is personal, so it is scoped to its user; shared data is not (see Data And Auth).
 - `app/lib/orpc/contract.ts` and `router.ts`: `profile.get` and `profile.update`. Handlers get the user from `requireAuthenticatedActor`.
 - `app/routes/dashboard.profile.tsx`: loads through `context.getOrpc()`, saves through `getOrpc()`, then calls `router.invalidate()`.
 - `app/agents/assistant.ts`: an agent tool that calls the same repository.
@@ -41,8 +41,10 @@ The profile is built the way every feature should be. Copy it:
 ## Data And Auth
 
 - Database code lives in `app/db/`, runs on the server only, and uses Drizzle on `env.DB`. No database URLs, no Cloudflare REST API for queries, no SQL built from strings.
-- Every user owns their data. User-owned tables have a `userId` column, and every read and write is scoped to the id from `requireAuthenticatedActor`. Never trust a `userId` sent by the browser. No organizations or teams unless the user asks.
-- Keep email/password sign-in, API keys, MCP OAuth, the signup password guard, trusted origins, and the explicit base URL working.
+- Everyone who has an account shares the app's data. The invitation code (`SUPER_ADMIN_SIGNUP_PASSWORD`) is the gate, and sign-up stays closed without it.
+- Every handler checks the user with `requireAuthenticatedActor` and records who created or changed a row (`createdBy`, `updatedBy`) from it. Never trust a user id sent by the browser.
+- Scope to the user only what is personal: the profile, API keys, the assistant's chat. Data some colleagues must not see belongs in a separate app with its own invitation code.
+- Keep email/password sign-in, API keys, MCP OAuth, the invitation code check, and trusted origins working.
 - `.claude/rules/database.md` covers tables and migrations. It loads when you open those files.
 
 ## Pages And The App Shell
@@ -59,7 +61,7 @@ The profile is built the way every feature should be. Copy it:
 
 - A capability is a contract in `app/lib/orpc/contract.ts` plus a handler in `app/lib/orpc/router.ts`, always changed together, with its data logic in `app/db/`. No hand-written REST routes.
 - Paths start with `/api/`, except `/api/auth` and `/api/mcp`, which are taken. The API docs (`/api/docs`), the spec (`/api/openapi.json`), and the MCP tools (`/api/mcp`) follow the contract on their own.
-- MCP exposes 3 fixed tools over the spec (`search-routes`, `execute`, `normalize-code`); never add MCP tools by hand. `execute` runs code in a Dynamic Worker through the `LOADER` binding, so keep `worker_loaders` in `wrangler.jsonc`.
+- MCP exposes fixed tools over the spec: `search-routes` and `call-route` everywhere, plus `execute` (a JavaScript sandbox) and `normalize-code` on Workers Paid, once the `worker_loaders` binding is enabled in `wrangler.jsonc`. Never add MCP tools by hand.
 - `.claude/rules/orpc.md` covers inputs, errors, and the descriptions agents read. It loads when you open those files.
 
 ## AI Features
@@ -72,10 +74,12 @@ The profile is built the way every feature should be. Copy it:
 
 ## Cloudflare
 
+- Apps run on the Workers Free plan unless the user moves to Workers Paid ($5 a month). Free gives 10 ms of CPU and 50 subrequests per request and per cron run, 5 cron triggers per account, and 10,000 AI neurons a day, with no Dynamic Workers (MCP `execute`) and no e-mail sending. Keep each request small, and say in money terms when a need requires Paid.
 - Read bindings and secrets with `import { env } from "cloudflare:workers"`, in server code only.
 - A new Durable Object class is exported from `app/server.ts` and gets a binding and a new migration tag in `wrangler.jsonc`. Never edit a migration that was deployed.
 - After changing bindings, regenerate the types: `pnpm wrangler types worker-configuration.d.ts -c wrangler.jsonc --include-runtime false`, then `pnpm biome format --write worker-configuration.d.ts`.
-- Secrets (`SITE_URL`, `TRUSTED_ORIGINS`, `BETTER_AUTH_SECRET`, `SUPER_ADMIN_SIGNUP_PASSWORD`, and each integration's keys) live in `.dev.vars` locally and are set with `pnpm wrangler secret put <NAME>` for production.
+- Secrets (`BETTER_AUTH_SECRET`, `SUPER_ADMIN_SIGNUP_PASSWORD`, each integration's keys, and `SITE_URL` with `TRUSTED_ORIGINS` only for a custom domain) live in `.dev.vars` locally. For production, pipe each value in: `printf '%s' 'value' | pnpm wrangler secret put NAME`. Without a pipe, Wrangler stores an empty value.
+- Scheduled jobs: `triggers.crons` in `wrangler.jsonc`, handled in `app/worker/scheduled.ts` (see its header). Automatic e-mails need Workers Paid and a company domain; on Free, show the information in the app and offer a `mailto:` link.
 - `pnpm run doctor` checks the local setup.
 
 ## Third-Party APIs

@@ -49,7 +49,7 @@ SFTP is not HTTP: `sftp.ts` uses [edgeport](https://github.com/gmitch215/edgepor
 3. Store it, never in code. A secret is named after the shell file and the `init` field it fills, in capitals: `pennylane.ts` + `apiToken` is `PENNYLANE_API_TOKEN`, `google-sheets.ts` + `serviceAccountKey` is `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY`. The test command relies on it.
    - locally: add `NAME=value` to `.dev.vars`;
    - types: run `pnpm wrangler types worker-configuration.d.ts -c wrangler.jsonc --include-runtime false` so `env.NAME` is typed;
-   - production: `printf '%s' 'value' | pnpm wrangler secret put NAME`.
+   - production: pipe the value in, `printf '%s' 'value' | pnpm wrangler secret put NAME` (PowerShell: `'value' | pnpm wrangler secret put NAME`). Without a pipe, Wrangler stores an empty value.
 4. Test the connection right away with `pnpm integration` (next section), before building any screen.
 5. Note in `APP_BRIEF.md` which services are connected, whose account each key belongs to, and when it expires.
 
@@ -137,17 +137,17 @@ listAllSupplierInvoices(filter?: PennylaneFilter[]) {
 }
 ```
 
-The keys belong to the company, not to one user: every signed-in user can read what a shell returns. If some data must stay restricted (finance, HR), ask the user who should see it before building the page.
+The keys belong to the company, not to one user: every signed-in user can read what a shell returns. Data some colleagues must not see (finance, HR) belongs in a separate app with its own invitation code: ask the user before building the page.
 
 ## Sync Into D1
 
 Most of these services have tight quotas: Trustpilot about 550 calls a day, Google Sheets 60 reads a minute, Zendesk exports 10 a minute, Tableau VizQL 100 an hour. Do not call them on every page view:
 
 - copy what the screens need into D1 tables, through a repository in `app/db/`;
-- refresh with a "Actualiser" button that calls a sync procedure, or on a schedule with a Cron Trigger (`triggers.crons` in `wrangler.jsonc` and a `scheduled` handler in the Worker entry);
+- refresh with an "Actualiser" button that calls a sync procedure, or on a schedule with a Cron Trigger (`triggers.crons` in `wrangler.jsonc`, handled in `app/worker/scheduled.ts`);
 - save resume points such as Zendesk's `after_cursor`;
 - give a sync job more time than a page: `runIntegration(effect, { timeout: "5 minutes" })`;
-- mind the Worker limit on outgoing requests per invocation: 50 on the Free plan, 10,000 on Paid.
+- on the Free plan, each request or cron run gets 10 ms of CPU and 50 outgoing requests (10,000 on Paid): sync one page per run, save the resume point, and let the next run carry on. AI classification of synced items counts against 10,000 neurons a day: classify in batches, and spread a large backlog over several days.
 
 ## Sources Without An API Shell
 

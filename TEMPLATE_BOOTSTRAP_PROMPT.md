@@ -1,281 +1,181 @@
 # Template Bootstrap Prompt
 
-You are starting from a template repository, not from scratch.
+You are setting up a new app from Mobile Club's template: you prepare the computer, deploy the empty app to Cloudflare, then design and build the user's tool with them.
 
 ## Who You Are Working With
 
-The user is probably not technical. They may have only installed Claude and an MCP plugin, so developer tools such as git, Node.js, pnpm, and Wrangler may be missing from this computer.
+The user is probably not technical. They may have only installed Claude, so developer tools such as git, Node.js, and pnpm may be missing from this computer.
 
+- Reply in the user's language, in short, plain sentences. Avoid jargon, or explain it in a few words.
 - Do every technical step yourself: install tools, run commands, edit files. Never ask the user to open a terminal or run a command.
-- Explain progress in short, plain sentences. Avoid jargon, or explain it in a few words.
-- Only involve the user for what they must do themselves: signing in or creating an account in the browser, clicking a button in a window that pops up, or typing their own computer password.
+- Involve the user only for what they must do themselves: creating an account or signing in in the browser, clicking a button in a window that pops up, typing their own computer password.
 - When something fails, fix it yourself before asking the user for anything.
-- When a choice is needed, use the `AskUserQuestion` tool with simple options.
+- When a choice is needed, use the `AskUserQuestion` tool with simple options. Ask business questions only; make the technical choices yourself.
 
-## Initial Requirement
+## 1. Start
 
-Do not ask the user what to build yet.
+In two or three sentences, tell the user what will happen: about 30 to 45 minutes of setup, a few requests to approve commands (approving them is safe during setup), one or two Cloudflare pages in their browser, and maybe their computer password once.
 
-First, prepare the computer, scaffold and bootstrap the template in the current workspace, create and configure a Cloudflare D1 database for this app, deploy the scaffold, and report the deployment details. Only after that should you use the `AskUserQuestion` tool to ask the user what they want built on top of the template.
+Then ask two questions with `AskUserQuestion`, and nothing else about the app yet:
 
-## Prepare The Computer
+- The app's name, short. It becomes its web address, `<name>.<subdomain>.workers.dev`. Suggest two names based on the folder name, and let them type their own.
+- Where the app lives: "My own Cloudflare account (free)", "Mobile Club's company Cloudflare account (IT adds me)", or "Not sure: my own free account for now". Company data is better in the company account; if the user picks it but is not a member yet, write the message for IT ("Please invite <e-mail> to the Cloudflare account with the Workers Admin role") and continue once they are in.
 
-Detect the operating system, then check which tools are installed:
+## 2. Prepare The Computer
+
+Detect the operating system, then check what is installed. On macOS, check git with `xcode-select -p`: running `git --version` without it opens an install window before you have warned the user.
 
 ```bash
-git --version
 node --version
 pnpm --version
 ```
 
-Install what is missing, preferring installers that do not need an admin password:
+Install what is missing, preferring installers that need no admin password:
 
-- pnpm: use the official standalone installer, which works without Node.js.
+- pnpm, with the standalone installer, which works without Node.js:
   - macOS and Linux: `curl -fsSL https://get.pnpm.io/install.sh | sh -`
   - Windows (PowerShell): `Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression`
-- Node.js: the template needs an LTS release, 22.18 or newer. If Node.js is missing or older, install it with `pnpm env use --global lts`.
-- git:
-  - macOS: run `xcode-select --install`, tell the user to click "Install" in the window that opens, and wait until `git --version` works.
-  - Windows: `winget install --id Git.Git -e --source winget`
-  - Linux: use the system package manager.
-- Wrangler, the Cloudflare command-line tool: do not install it globally. It is a dependency of the template, so after `pnpm install` run it as `pnpm wrangler`.
+- Node.js 22.18 or newer: `pnpm runtime set node lts -g` (with pnpm 10 and older: `pnpm env use --global lts`).
+- git is optional during setup; only the local history and the GitHub backup need it.
+  - macOS: run `xcode-select --install`, tell the user to click "Install", and carry on with the next steps while it downloads (often 10 to 20 minutes).
+  - Windows: `winget install --id Git.Git -e --source winget --scope user --silent --accept-source-agreements --accept-package-agreements`. If it asks for administrator rights the user does not have, skip git.
+  - Linux: the system package manager.
 
-A tool installed a moment ago may not be on the `PATH` of the current shell yet. If it is still "not found", start a new shell or add its install folder to `PATH` before retrying.
+The Claude app does not see a newly installed tool until it restarts: start each later command by adding the install folders to `PATH`. For pnpm, that is `PNPM_HOME/bin` and `PNPM_HOME` (older versions): `~/Library/pnpm` on macOS, `~/.local/share/pnpm` on Linux, `%LOCALAPPDATA%\pnpm` on Windows. For example, `export PATH="$HOME/Library/pnpm/bin:$HOME/Library/pnpm:$PATH"; pnpm --version`, or in PowerShell `$env:Path = "$env:LOCALAPPDATA\pnpm\bin;$env:LOCALAPPDATA\pnpm;" + $env:Path`.
 
-## Cloudflare Account
+## 3. Get The Template
 
-Once the template dependencies are installed, check the Cloudflare login:
+The folder you started in is the project root. It counts as empty when it holds only files such as `.DS_Store`, `desktop.ini`, or a `.claude` folder. If it holds anything else, stop and explain the conflict instead of creating a nested folder.
+
+Download the template without its git history:
+
+- macOS and Linux: `curl -fsSL https://codeload.github.com/diagonall-ai/mc-software/tar.gz/refs/heads/main | tar -xz --strip-components=1`
+- Windows (PowerShell): `Invoke-WebRequest https://codeload.github.com/diagonall-ai/mc-software/zip/refs/heads/main -OutFile "$env:TEMP\template.zip"; Expand-Archive "$env:TEMP\template.zip" "$env:TEMP\template" -Force; Copy-Item "$env:TEMP\template\mc-software-main\*" . -Recurse -Force`
+
+Then name the app: set `name` in `package.json` and `wrangler.jsonc` to the name as a slug (lowercase, digits, hyphens), and replace `[TOREPLACE]` in `.env.local` with the readable name. Every app needs its own name, or its deploy overwrites another app on the same account.
+
+Install the dependencies with `pnpm install`. `package.json` pins the pnpm version, and pnpm switches to it by itself. "Ignored build scripts" warnings are expected.
+
+This session started in an empty folder, so the project's rules and skills did not load. Read `CLAUDE.md`, `AI_AGENT_GUIDE.md`, `UI_SYSTEM.md`, and `.claude/rules/*.md` now, and follow them from here on.
+
+## 4. Connect Cloudflare
+
+For a new account, the user creates it at https://dash.cloudflare.com/sign-up and clicks the link in the verification e-mail first: the login below waits only two minutes, and an unverified account cannot deploy.
+
+Run `pnpm wrangler login` in the background. It opens the browser; the user signs in and clicks "Allow". Never create accounts or type credentials for the user.
+
+Check with `pnpm wrangler whoami`. If it lists several accounts, ask which one to use (by name, in the terms of step 1), then write its id as `"account_id"` in `wrangler.jsonc`: environment variables do not carry over between your commands.
+
+MCP tools, including Cloudflare's, do not replace Wrangler here.
+
+## 5. Create The Database
 
 ```bash
-pnpm wrangler whoami
+pnpm wrangler d1 create <app-slug> --location weur
 ```
 
-If Wrangler is not logged in, run `pnpm wrangler login`. It opens the browser: tell the user to sign in (or first create a free account at https://dash.cloudflare.com/sign-up) and then click "Allow". Never create accounts or type credentials for the user.
+Write the printed `database_name` and `database_id` into the existing `DB` entry of `d1_databases` in `wrangler.jsonc`. Do not use `--update-config`: it adds a second `DB` entry, and every later command fails.
 
-MCP tools, including Cloudflare's, do not replace Wrangler. Create the D1 database, apply migrations, set secrets, and deploy with `pnpm wrangler`.
+The template ships its migrations; apply them:
 
-## Template Repository
+```bash
+pnpm wrangler d1 migrations apply DB --local --config wrangler.jsonc
+pnpm wrangler d1 migrations apply DB --remote --config wrangler.jsonc
+```
 
-Use this repository as the base:
+## 6. Set The Secrets
 
-`https://github.com/diagonall-ai/mc-software`
+Your shell has no terminal, so always pipe the value into `wrangler secret put`: without a pipe it silently stores an empty value.
 
-## Workspace Rule
+- `BETTER_AUTH_SECRET`: a new random value.
+  - macOS and Linux: `openssl rand -base64 32 | pnpm wrangler secret put BETTER_AUTH_SECRET`
+  - Windows: `node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64'))" | pnpm wrangler secret put BETTER_AUTH_SECRET`
+- `SUPER_ADMIN_SIGNUP_PASSWORD`, the invitation code: anyone who has it can create an account and see the app's data, and sign-up stays closed while it is not set. Make a new one for each app, easy to type: two or three words and digits, such as `soleil-velo-42`. Never `admin123`: it is public in the template.
+  - macOS and Linux: `printf '%s' 'soleil-velo-42' | pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD`
+  - Windows: `'soleil-velo-42' | pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD`
 
-The user prompt usually starts in an empty folder that is already meant to be the project root.
+`SITE_URL` and `TRUSTED_ORIGINS` are not needed on a workers.dev address: sign-in trusts the address the app is served from. Set them only for a custom domain. `.dev.vars` keeps its example values for local use.
 
-- Put the template files at the root of the current working directory.
-- Do not create a nested subfolder inside the current workspace.
-- If the current directory is empty, clone directly into it, for example with `git clone https://github.com/diagonall-ai/mc-software .`.
-- If the current directory cannot be cloned into directly, clone into a temporary location and copy the template contents into the current root without leaving the project nested in a child folder.
-- If a project name is needed during bootstrap, derive a temporary one from the current folder name instead of asking the user first.
-- If the current folder is not empty and cannot safely receive the template at its root, stop and explain the conflict instead of creating a surprise nested directory.
+## 7. Check It Locally
 
-## Git History And Remote Rule
+1. `pnpm run doctor`
+2. Start the dev server with the browser preview (`.claude/launch.json`). If the preview cannot find pnpm, run `pnpm dev` in the background from your shell, with the `PATH` prefix, and open http://localhost:3934 in the preview.
+3. `pnpm seed:dev` creates the local account `test@test.com` / `testtest`. Check that sign-in works and the dashboard opens.
 
-This template's git history is not the new app's history.
+## 8. Deploy
 
-After the template files are materialized in the target workspace:
+```bash
+pnpm run deploy
+```
 
-- remove the template repository's git metadata from the target workspace
-- reinitialize git history for the new app with `git init`
-- make sure there is no inherited `origin` remote pointing at the template repository
-- create the first local commit only after bootstrap files and generated config are in a coherent state
-- do not push to the template repository
-- do not create a remote repository without asking the user first
+Plain `pnpm deploy` is a different pnpm command.
 
-After the initial bootstrap and deployment are complete, ask the user whether they want a new remote GitHub repository for this app. Present it in plain words as an optional online backup of the code. If GitHub is not set up on this computer, say so and let the user skip it.
+- If the account has no workers.dev subdomain yet, Wrangler stops and prints a link to register one. Open it for the user, suggest a name such as `mobileclub-<firstname>`, and deploy again once they confirm. A new subdomain can take a few minutes to answer.
+- If Wrangler asks to verify the e-mail address, the user clicks the link in the Cloudflare e-mail, then deploy again.
 
-Before asking which account should own the remote, fetch the available GitHub owner choices instead of guessing:
+Open the deployed address in the browser preview and have the user create their own account there, in the "Créer un compte" tab, with the invitation code. This proves that sign-up and sign-in work in production. On the free plan, an occasional "Worker exceeded resource limits" on sign-in can happen: retry once, and if it persists, tell the user that the Workers Paid plan ($5 a month) removes the limit.
 
-- use the installed GitHub app, `gh`, or another available GitHub integration to identify the authenticated user account
-- fetch the organizations the authenticated user can create repositories under
-- present the user with the available owner choices
-- ask whether to create a new remote repository and, if yes, under which owner
-- if the user declines, keep the repository local and do not add a remote
+## 9. Save And Report
 
-If the user asks to create the remote:
+If git is available: `git init -b main`, set a local identity (`git config user.name` and `user.email`, with the user's name and e-mail), and commit.
 
-- create a new repository for the app under the selected user or organization
-- add it as `origin`
-- push the current branch
-- report the remote URL
+Tell the user, leading with what they need:
 
-## Package Manager Rule
+- the app's web address;
+- the invitation code, and how colleagues join: open the address, "Créer un compte", enter the code, choose a password.
 
-Use `pnpm` for all package management in this template.
+Record the Cloudflare account, the D1 name and id, and the deploy date in `APP_BRIEF.md` when you create it; do not show ids to the user.
 
-- install dependencies with `pnpm install`
-- add dependencies with `pnpm add`
-- remove dependencies with `pnpm remove`
-- run scripts with `pnpm <script>` or `pnpm run <script>`
-- update `pnpm-lock.yaml`, not another package-manager lockfile
-- do not use `npm install`, `npm uninstall`, `yarn`, or `bun` unless the user explicitly asks for a package-manager migration
-
-## Required Workflow
-
-1. Prepare the computer as described in "Prepare The Computer".
-2. Materialize the template repository at the root of the current working directory.
-3. Reinitialize git history for the new app as described in the git history and remote rule.
-4. Read these files in this exact order:
-   - `CLAUDE.md`
-   - `AI_AGENT_GUIDE.md`
-   - `BOOTSTRAP.md`
-   - `UI_SYSTEM.md`
-5. Rename the template for this app: set `name` in `package.json` and `wrangler.jsonc` to the app slug, and replace `[TOREPLACE]` in `.env.local` with a readable app name. Every app needs its own Worker name, otherwise deploying overwrites another app on the same Cloudflare account.
-6. Bootstrap the template exactly as instructed by the repository.
-7. Make sure Wrangler is logged in to the user's Cloudflare account, as described in "Cloudflare Account".
-8. Create a new Cloudflare D1 database dedicated to this app:
-   ```bash
-   pnpm wrangler d1 create <app-slug> --binding DB --update-config --config wrangler.jsonc
-   ```
-   If Wrangler reports multiple available Cloudflare accounts, fetch and present
-   the account choices, then use the selected account for D1 creation, remote
-   migrations, and deployment. Do not guess the account.
-9. Verify `wrangler.jsonc` contains the D1 binding:
-   ```jsonc
-   "d1_databases": [
-     {
-       "binding": "DB",
-       "database_name": "<app-slug>",
-       "database_id": "<created-by-wrangler>",
-       "migrations_dir": "drizzle/migrations"
-     }
-   ]
-   ```
-10. Generate or refresh Better Auth and Drizzle migrations:
-   ```bash
-   pnpm dlx auth@latest generate --config app/lib/auth-server.ts --output app/db/auth.schema.ts --yes
-   pnpm drizzle-kit generate
-   ```
-11. Apply local and remote D1 migrations:
-   ```bash
-   pnpm wrangler d1 migrations apply DB --local --config wrangler.jsonc
-   pnpm wrangler d1 migrations apply DB --remote --config wrangler.jsonc
-   ```
-12. Configure secrets with Wrangler:
-   ```bash
-   pnpm wrangler secret put BETTER_AUTH_SECRET
-   pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD
-   ```
-   Generate a new random value for `BETTER_AUTH_SECRET`. Never reuse the example value from `.dev.vars`.
-13. Run the bootstrap verifier:
-   ```bash
-   pnpm run doctor
-   ```
-14. Confirm the scaffold runs locally.
-15. Seed or verify the local development account:
-   ```bash
-   pnpm seed:dev
-   ```
-16. Deploy the scaffold to Cloudflare right away by following the repository's documented deployment flow.
-17. Once deployed, immediately give the user:
-   - the deployed Cloudflare app URL
-   - the Cloudflare D1 database name and id
-   - the temporary `SUPER_ADMIN_SIGNUP_PASSWORD`
-18. Ask the user whether to create a new remote GitHub repository, after fetching the available GitHub user and organization owner choices.
-19. Interview the user about what to build, as described in "Understand What To Build".
-20. Propose the application structure, get the user's approval, and save it in `APP_BRIEF.md`.
-21. Implement the approved application on top of the template.
-
-## Bootstrap-Specific Instruction
-
-During bootstrap, set a short temporary value for `SUPER_ADMIN_SIGNUP_PASSWORD` so signup can be tested quickly.
-
-Rules for this temporary password:
-
-- make it short
-- make it easy to type
-- use it only as a bootstrap/dev password
-- tell the user explicitly what password you chose
-- clearly say that it must be changed before any real deployment or public usage
-
-Example acceptable temporary password:
-
-`admin123`
-
-## Non-Negotiable Rules
-
-- Do not start from an empty app.
-- Do not invent a different stack.
-- Do not replace TanStack Start, D1, Drizzle, Better Auth, or the existing Cloudflare deployment model unless explicitly required.
-- Do not guess env var names, auth setup, migration commands, or deploy commands.
-- Do not invent a parallel UI system.
-- Do not expose internal setup docs in the user-facing app.
-- Do not commit secrets.
-- Do not keep the template repository's git history in the new app.
-- Do not push to a remote until the user has explicitly chosen whether to create one and under which owner.
-- Do not use a package manager other than `pnpm`.
-- Deployment is required. Follow the repo's Wrangler and Cloudflare instructions exactly.
+Offer an online backup of the code on GitHub only if `gh` or a GitHub connector is available on this computer. Otherwise, say in one sentence that the code stays on this computer for now.
 
 ## Understand What To Build
 
-After the scaffold is deployed and the GitHub decision is handled, learn enough about the user's activity to design the app yourself. You need a broad picture of their business, not a detailed specification.
+Learn enough about the user's activity to design the app yourself. You need a broad picture of their business, not a detailed specification. If a long install leaves the user waiting during setup, you may start this interview early and keep the answers for later.
 
 Interview the user with the `AskUserQuestion` tool over several rounds, usually two to four. Use plain words, offer concrete options based on what they have already told you, and include a "Not sure, you decide" option when they may not know. Cover:
 
 - their activity and the problem the app should solve
-- who will use it (only them, their team, or their customers) and who can see or change what
+- who will use it: only them or their team
 - the main things the app keeps track of, such as clients, orders, products, appointments, or documents
 - the main screens they picture and what they do on each one
-- external services or APIs to connect, such as email, payments, calendars, spreadsheets, or tools they already use
+- external services or APIs to connect, such as spreadsheets, a helpdesk, a CRM, or accounting
 - existing data to bring in, such as a spreadsheet or an export from another tool
-- anything that should happen automatically, such as reminders, scheduled reports, or notifications
+- anything that should happen automatically, such as reminders, scheduled reports, or syncs
+
+What the template can do, so you propose what works:
+
+- Everyone who has an account sees and changes the app's data; the invitation code is the gate. If some colleagues must not see some data, it goes into a separate app with its own code.
+- Scheduled jobs (syncs, weekly reports) run on the free plan. Automatic e-mails need the Workers Paid plan and a company domain: on the free plan, show the information in the app and add a button that prepares the e-mail in the user's mail app.
+- AI features (summaries, classification, an assistant) only work on the deployed app, within a daily free allowance.
+- When the user is not the administrator of a service to connect, write the message for their administrator (what to create, where, with which permission), and build with sample data or a CSV import until the key arrives.
 
 Do not ask about technical choices such as tables, frameworks, or libraries. Decide those yourself.
 
-Then propose the application structure in plain language: the main sections and pages, what each one shows, the main things tracked and how they relate, who can do what, and which services are connected. Ask the user to confirm or adjust it with `AskUserQuestion` before writing code.
+Then propose the application structure in plain language: the main sections and pages, what each one shows, the main things tracked and how they relate, and which services are connected. Ask the user to confirm or adjust it with `AskUserQuestion` before writing code.
 
 Save the agreed overview in `APP_BRIEF.md` at the project root. Future sessions read it to understand the business, so keep it up to date as the app grows.
 
 ## How To Work
 
-Once the user has approved the application structure, build it on top of the template.
+Once the user has approved the structure, build it on top of the template:
 
-While implementing the requested application:
+- Build the smallest useful version first, deploy it, share the link, and ask for feedback before adding more.
+- Copy the reference feature for new features (see "The Reference Feature" in `CLAUDE.md`), and the recipes in `AI_AGENT_GUIDE.md`.
+- Connect external services through the shells in `app/integrations/`, following `INTEGRATIONS.md`: test each one with `pnpm integration` before showing it to the user, pipe their keys into `pnpm wrangler secret put`, and never put keys in code.
+- After deploying an AI feature, ask the user to try it on the live app while you watch `pnpm wrangler tail` for errors.
+- Apply new migrations with `--remote` before each deploy that needs them.
 
-- build the smallest useful version first, deploy it, share the link, and ask for feedback before adding more
-- connect external services through the shells in `app/integrations/`, following `INTEGRATIONS.md`; test each one with `pnpm integration` before showing it to the user; store their keys in `.dev.vars` and as Worker secrets with `pnpm wrangler secret put`, explain where to find each key, and never put keys in code
-- keep the existing repo structure unless there is a strong reason to change it
-- use `AI_AGENT_GUIDE.md` for common page, capability, table, auth, and verification recipes
-- reuse existing components and patterns before creating new ones
-- keep UI work aligned with `UI_SYSTEM.md`
-- copy the profile feature for new features (see "The Reference Feature" in `CLAUDE.md`)
-- use SSR loaders as the primary source of page data
-- return dashboard header metadata from loaders when the shell needs a title, description, or back button
-- define loading components with skeletons for new pages
-- use shared route error states unless the route needs domain-specific recovery
-- use `app/lib/orpc/authorization.ts` helpers for server-side permission checks
-- keep D1 access server-only through repositories or services under `app/db/`
+## Non-Negotiable Rules
 
-## Required Output Behavior
-
-Before asking the user what to build, verify:
-
-- the template repository was copied into the root of the current workspace
-- git history was reinitialized for the new app
-- no inherited template `origin` remote remains
-- the docs were read
-- the bootstrap succeeded
-- the app runs locally
-- a new D1 database dedicated to this app was created
-- the D1 database name and id
-- local and remote D1 migrations were applied
-- the app was deployed to Cloudflare
-- the deployed Cloudflare app URL
-- which temporary `SUPER_ADMIN_SIGNUP_PASSWORD` was set
-
-Then tell the user in plain language. Lead with what they need: the app's web address and the temporary `SUPER_ADMIN_SIGNUP_PASSWORD` to sign up with, which must be changed before real use. Put the technical details above in a short list after that.
-
-Then ask the user whether to create a new remote repository. Fetch and present the available GitHub user and organization owner choices before asking the user to choose an owner.
-
-After the remote repository decision is handled, start the interview described in "Understand What To Build".
-
-After implementing the requested application, run the full verification again and report the result.
+- Do not start from an empty app or invent a different stack: keep TanStack Start, D1, Drizzle, Better Auth, and the Cloudflare deployment.
+- Do not guess env var names, auth setup, migration commands, or deploy commands: they are in this prompt and the repository's docs.
+- Use `pnpm` only, never `npm install`, `yarn`, or `bun`.
+- Do not commit secrets or expose internal setup docs in the app.
+- Do not push anywhere until the user has chosen to create a GitHub backup and under which account.
 
 ## Required Verification Before Finishing
 
-Run:
+After building the app, and before each deploy:
 
 ```bash
 pnpm lint
