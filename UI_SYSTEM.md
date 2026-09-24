@@ -20,6 +20,17 @@ Important settings:
 
 The global token system lives in `app/app.css`. New UI work should consume those tokens through Tailwind utilities and CSS variables, not by inventing ad hoc color values.
 
+## Brand: Mobile Club
+
+The theme in `app/app.css` is Mobile Club's brand ("energetic minimalism"): a warm cream canvas, black text, and one electric-yellow accent.
+
+- `primary` (yellow `#fff95f`, black text) is for calls to action and active states only. Never use it for backgrounds, text, or decoration.
+- Use the semantic tokens for everything else. The brand's other accents live in the chart colors: periwinkle (`chart-1`), teal (`chart-2`), gold (`chart-3`), pink (`chart-4`).
+- Dark mode is derived from the brand's deep indigo. Check new screens in both themes.
+- Whyte Inktrap is the only UI font (`font-sans`, `font-heading`). Boing (`font-boing`) is for rare display moments such as a hero title, never for body text or controls.
+- Buttons are pills and badges are fully rounded; cards and dialogs use the larger radius.
+- Fonts are self-hosted woff2 files in `public/fonts`. `@font-face` rules live in `app/app.css`, the Regular and Medium weights are preloaded in `app/routes/__root.tsx`, and fontaine (`vite.config.ts`) generates metric-matched fallbacks. To add a weight, add the file and an `@font-face` rule; keep the family names single-token (`whyte-inktrap`, `boing`) so the fallbacks match.
+
 ## Approved UI primitives
 
 Current local primitives in `app/components/ui/`:
@@ -132,7 +143,7 @@ Base UI composition (not Radix):
 - a `Button` rendered as a link needs `nativeButton={false}`: `<Button nativeButton={false} render={<Link to="/x" />}>Go</Button>`
 - menu item actions use `onClick`, not `onSelect` (`onSelect` is only for `Command` items and `Calendar`)
 - state styling uses Base UI data attributes (`data-open:`, `data-closed:`, `data-checked:`, `data-starting-style:`), not `data-[state=...]`
-- local changes to stock wrappers, keep them when updating: `dropdown-menu` and `tooltip` forward a `container` prop (the media player needs it), and the `toast` viewport uses `z-100` so toasts stay above open dialogs and drawers
+- local changes to stock wrappers, keep them when updating: `button` is pill-shaped with a foreground-colored `link` variant (brand), `dropdown-menu` and `tooltip` forward a `container` prop (the media player needs it), and the `toast` viewport uses `z-100` so toasts stay above open dialogs and drawers
 
 Rules:
 

@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { FontaineTransform } from "fontaine";
 import { defineConfig } from "vite";
 
 export default defineConfig({
@@ -13,6 +14,12 @@ export default defineConfig({
 			srcDirectory: "app",
 		}),
 		tailwindcss(),
+		// Metric-matched fallbacks for the self-hosted fonts in public/fonts, so
+		// text keeps its layout while the brand fonts load.
+		FontaineTransform.vite({
+			fallbacks: ["Arial"],
+			resolvePath: (id) => new URL(`./public${id}`, import.meta.url),
+		}),
 	],
 	server: {
 		port: 3934,

@@ -29,6 +29,14 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
 			{ title: PROJECT_NAME },
 		],
 		links: [
+			// First-paint weights of the brand font; the others load on demand.
+			...["Regular", "Medium"].map((weight) => ({
+				rel: "preload",
+				href: `/fonts/WhyteInktrap-${weight}.woff2`,
+				as: "font",
+				type: "font/woff2",
+				crossOrigin: "anonymous" as const,
+			})),
 			{ rel: "stylesheet", href: appCss },
 			{ rel: "icon", href: faviconHref },
 		],

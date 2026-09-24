@@ -162,6 +162,7 @@ Build every screen from the shadcn/ui components in `app/components/ui/`. Before
 - Components are built on Base UI, not Radix: use the `render` prop instead of `asChild`, add `nativeButton={false}` when a `Button` renders a link, and use `onClick` (not `onSelect`) on menu items.
 - Notifications use `toast.add(...)` from `~/components/ui/toast`.
 - Chat and agent interfaces use `MessageScroller`, `Message`, `Bubble`, `Attachment`, and `Marker`, plus AI Elements for the prompt input.
+- The theme is Mobile Club's brand (see "Brand" in `UI_SYSTEM.md`): the yellow `primary` is only for calls to action and active states, colors always come from the theme tokens, and Whyte Inktrap is the only UI font. Check new screens in light and dark mode.
 
 ## Design System
 
