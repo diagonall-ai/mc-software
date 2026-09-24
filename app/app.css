@@ -114,6 +114,8 @@
 	--border: #e9ecef; /* surface-variant */
 	--input: #c4c7c8; /* outline-variant */
 	--ring: #7d89ff; /* tertiary */
+	--control: #4027e7; /* inverse-primary: selection controls, see below */
+	--control-foreground: #ffffff;
 	--chart-1: #7d89ff; /* tertiary */
 	--chart-2: #00b67a; /* secondary */
 	--chart-3: #ffd700; /* primary-container */
@@ -174,6 +176,8 @@
 	--border: oklch(1 0 0 / 12%);
 	--input: oklch(1 0 0 / 18%);
 	--ring: #7d89ff;
+	--control: #fff95f; /* yellow reads well on dark surfaces */
+	--control-foreground: #000000;
 	--chart-1: #7d89ff;
 	--chart-2: #00b67a;
 	--chart-3: #ffd700;
@@ -195,6 +199,24 @@
 	--shadow-lg: 0 3px 8px rgb(0 0 0 / 0.45);
 	--shadow-xl: 0 3px 8px rgb(0 0 0 / 0.45);
 	--shadow-2xl: 0 3px 8px rgb(0 0 0 / 0.45);
+}
+
+/*
+ * Selection controls use `--control` instead of the yellow primary, which is
+ * unreadable as a small fill on cream. Scoping `--primary` here keeps the stock
+ * components untouched; buttons, badges, and bubbles keep the yellow.
+ */
+@layer base {
+	[data-slot="checkbox"],
+	[data-slot="radio-group-item"],
+	[data-slot="switch"],
+	[data-slot="slider"],
+	[data-slot="progress"],
+	[data-slot="questionnaire-choice"],
+	[data-slot="field-label"] {
+		--primary: var(--control);
+		--primary-foreground: var(--control-foreground);
+	}
 }
 
 @theme inline {
