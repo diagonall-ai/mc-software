@@ -78,12 +78,7 @@ pnpm wrangler d1 create <app-slug> --location weur
 
 Write the printed `database_name` and `database_id` into the existing `DB` entry of `d1_databases` in `wrangler.jsonc`. Do not use `--update-config`: it adds a second `DB` entry, and every later command fails.
 
-The template ships its migrations; apply them:
-
-```bash
-pnpm wrangler d1 migrations apply DB --local --config wrangler.jsonc
-pnpm wrangler d1 migrations apply DB --remote --config wrangler.jsonc
-```
+The tables need no command: `pnpm dev` creates them in the local database and `pnpm run deploy` in the online one, from the migrations the template ships. If sign-in ever reports a missing table, run the same command they do: `pnpm wrangler d1 migrations apply DB --local --config wrangler.jsonc` (or `--remote`).
 
 ## 6. Set The Secrets
 
