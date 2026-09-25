@@ -13,7 +13,7 @@ paths:
 - A personal table (settings, drafts) has a `userId` column with an index, and every function filters on it, like `app/db/profile.ts`.
 - Keep reads bounded: paginate lists, and use a join or `inArray` instead of one query per row.
 - Throw `ORPCError` (from `@orpc/server`) for errors the caller should see, like `NOT_FOUND` or `CONFLICT`.
-- `drizzle-kit generate` asks whether a table or column was renamed when one run both removes and adds one, and that question needs a terminal you do not have. Add in one run and remove in another; to rename, add the new column, copy the data, and drop the old one later.
+- Schema changes are yours to decide: never ask the user about tables, columns or migrations. `drizzle-kit generate` asks whether a table or column was renamed when one run both removes and adds one, and that question needs a terminal you do not have, so never do both in one run. To rename a column: add the new one and generate; copy the data with a custom migration (`pnpm drizzle-kit generate --custom --name copy-<column>`, then write the `UPDATE` in the new SQL file); move the code to the new column; remove the old one and generate again.
 - Migrations: `pnpm drizzle-kit generate`, read the SQL in `drizzle/migrations/`, then `pnpm wrangler d1 migrations apply DB --local --config wrangler.jsonc`. Apply with `--remote` only when deploying. Never edit an applied migration; add a new one.
 - Never drop a table or column, or delete data, without the user's explicit OK.
 - Files go in R2 with their metadata in D1. Never store file contents in D1.
