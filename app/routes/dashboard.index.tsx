@@ -1,11 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-	ArrowRight,
-	Database,
-	KeyRound,
-	Network,
-	UserRound,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
 	Card,
@@ -15,111 +9,55 @@ import {
 	CardTitle,
 } from "~/components/ui/card";
 import { Skeleton } from "~/components/ui/skeleton";
+import { PROJECT_NAME } from "~/lib/project";
 
+// The welcome page of a fresh app. Replace it with the app's real home page
+// once its first pages exist.
 export const Route = createFileRoute("/dashboard/")({
 	staticData: {
 		dashboardHeader: {
-			description: "Template baseline and integration checkpoints",
-			title: "Dashboard",
+			description: "L’application est en ligne.",
+			title: "Accueil",
 		},
 	},
-	pendingComponent: DashboardSkeleton,
-	component: DashboardOverviewPage,
+	pendingComponent: WelcomeSkeleton,
+	component: WelcomePage,
 });
 
-function DashboardOverviewPage() {
+function WelcomePage() {
 	return (
-		<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-			<Card className="border-border/70">
-				<CardHeader>
-					<CardTitle>Template baseline</CardTitle>
-					<CardDescription>
-						This dashboard is intentionally generic. Add domain-specific pages
-						only after the new application domain is defined.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="grid gap-3 sm:grid-cols-2">
-					<TemplateCapability
-						description="Better Auth stores users, sessions, API keys, and MCP OAuth data in D1."
-						icon={UserRound}
-						title="Auth ready"
-					/>
-					<TemplateCapability
-						description="Drizzle uses the Worker D1 binding. Runtime code does not use database URLs or REST access."
-						icon={Database}
-						title="D1 ready"
-					/>
-					<TemplateCapability
-						description="oRPC generates the OpenAPI route surface used by REST and the MCP execution proxy."
-						icon={Network}
-						title="API ready"
-					/>
-					<TemplateCapability
-						description="Users can create API keys and call protected REST or MCP endpoints."
-						icon={KeyRound}
-						title="Machine access"
-					/>
-				</CardContent>
-			</Card>
-
-			<Card className="border-border/70">
-				<CardHeader>
-					<CardTitle>Next page pattern</CardTitle>
-					<CardDescription>
-						Use SSR loaders for first paint and return dashboard header metadata
-						from the same route module.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-3">
-					<Button
-						className="w-full justify-between"
-						nativeButton={false}
-						render={<Link to="/dashboard/profile" viewTransition />}
-						variant="outline"
-					>
-						Profile page
-						<ArrowRight className="size-4" />
-					</Button>
-					<Button
-						className="w-full justify-between"
-						nativeButton={false}
-						render={<a href="/api/docs" />}
-						variant="outline"
-					>
-						API reference
-						<ArrowRight className="size-4" />
-					</Button>
-				</CardContent>
-			</Card>
-		</div>
+		<Card className="max-w-2xl border-border/70">
+			<CardHeader>
+				<CardTitle>Bienvenue dans {PROJECT_NAME}</CardTitle>
+				<CardDescription>
+					L’application est en ligne. Ses pages arrivent ici au fur et à mesure
+					qu’elles sont construites avec Claude.
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="grid gap-3 sm:grid-cols-2">
+				<Button
+					className="justify-between"
+					nativeButton={false}
+					render={<Link to="/dashboard/profile" viewTransition />}
+					variant="outline"
+				>
+					Mon profil
+					<ArrowRight className="size-4" />
+				</Button>
+				<Button
+					className="justify-between"
+					nativeButton={false}
+					render={<Link to="/dashboard/assistant" viewTransition />}
+					variant="outline"
+				>
+					Assistant
+					<ArrowRight className="size-4" />
+				</Button>
+			</CardContent>
+		</Card>
 	);
 }
 
-function TemplateCapability({
-	description,
-	icon: Icon,
-	title,
-}: {
-	description: string;
-	icon: typeof UserRound;
-	title: string;
-}) {
-	return (
-		<div className="rounded-xl border border-border/70 p-4">
-			<div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-				<Icon className="size-4" />
-			</div>
-			<h2 className="font-medium text-sm">{title}</h2>
-			<p className="mt-1 text-muted-foreground text-sm">{description}</p>
-		</div>
-	);
-}
-
-function DashboardSkeleton() {
-	return (
-		<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-			<Skeleton className="h-80 rounded-xl" />
-			<Skeleton className="h-56 rounded-xl" />
-		</div>
-	);
+function WelcomeSkeleton() {
+	return <Skeleton className="h-48 max-w-2xl rounded-xl" />;
 }

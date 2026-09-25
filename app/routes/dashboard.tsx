@@ -66,9 +66,18 @@ import { getDashboardPageHeader } from "~/lib/dashboard-page-header";
 import { cn } from "~/lib/utils";
 
 const dashboardLinks = [
-	{ to: "/dashboard", label: "Dashboard", icon: Home },
+	{ to: "/dashboard", label: "Accueil", icon: Home },
 	{ to: "/dashboard/assistant", label: "Assistant", icon: Sparkles },
-	{ to: "/dashboard/design-system", label: "Design System", icon: Layers3 },
+	// A reference for building screens: listed in local dev only.
+	...(import.meta.env.DEV
+		? ([
+				{
+					to: "/dashboard/design-system",
+					label: "Design System",
+					icon: Layers3,
+				},
+			] as const)
+		: []),
 ] as const;
 
 export const Route = createFileRoute("/dashboard")({

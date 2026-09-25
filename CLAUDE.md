@@ -16,6 +16,8 @@ The user is not technical.
 - When something fails, fix it before asking the user anything. Do not end on "next, I will…": do it.
 - Before building, read `AI_AGENT_GUIDE.md` and the closest existing example, and copy its pattern.
 - Check your work in the browser preview. With the dev server running, `pnpm seed:dev` creates a local account: `test@test.com` / `testtest`.
+- When a change is ready and checked, put it online: apply new migrations with `--remote`, run `pnpm run deploy`, and give the user the link and what to try.
+- Someone forgot their password: `node scripts/reset-password.mjs <email>` gives the deployed account a temporary password, for the owner to pass on.
 
 ## Stack
 
@@ -43,7 +45,7 @@ The profile is built the way every feature should be. Copy it:
 - Database code lives in `app/db/`, runs on the server only, and uses Drizzle on `env.DB`. No database URLs, no Cloudflare REST API for queries, no SQL built from strings.
 - Everyone who has an account shares the app's data. The invitation code (`SUPER_ADMIN_SIGNUP_PASSWORD`) is the gate, and sign-up stays closed without it.
 - Every handler checks the user with `requireAuthenticatedActor` and records who created or changed a row (`createdBy`, `updatedBy`) from it. Never trust a user id sent by the browser.
-- Scope to the user only what is personal: the profile, API keys, the assistant's chat. Data some colleagues must not see belongs in a separate app with its own invitation code.
+- Scope to the user only what is personal: the profile, API keys, the assistant's chat. There are no roles: every signed-in user can see and change everything else.
 - Keep email/password sign-in, API keys, MCP OAuth, the invitation code check, and trusted origins working.
 - `.claude/rules/database.md` covers tables and migrations. It loads when you open those files.
 
@@ -54,6 +56,7 @@ The profile is built the way every feature should be. Copy it:
 - Give every page a `pendingComponent` (a skeleton) and `errorComponent: RouteErrorComponent` from `~/components/route-error-state`.
 - Header: set `staticData.dashboardHeader` to `{ title, description?, backHref? }`. For a dynamic title, also return `dashboardHeader` from the loader; the static one shows while it loads.
 - Header buttons go in `DashboardHeaderActionsPortal`, footer content in `DashboardFooterLeftPortal` or `DashboardFooterRightPortal`, all from `~/components/dashboard/shell-portals`. The footer only appears when a page uses one. Do not build toolbars inside the page.
+- The first home page (`app/routes/dashboard.index.tsx`) is a welcome placeholder: replace it with the app's real home page once its first pages exist.
 - Add every new page to `dashboardLinks` in `app/routes/dashboard.tsx` and to the ⌘K list in `app/components/dashboard/sidebar-command-bar.tsx`, or users cannot reach it.
 - Anything a user, an agent, or an API client could do goes through oRPC. Use `createServerFn` only for glue that the UI alone needs.
 
@@ -79,6 +82,7 @@ The profile is built the way every feature should be. Copy it:
 - A new Durable Object class is exported from `app/server.ts` and gets a binding and a new migration tag in `wrangler.jsonc`. Never edit a migration that was deployed.
 - After changing bindings, regenerate the types: `pnpm wrangler types worker-configuration.d.ts -c wrangler.jsonc --include-runtime false`, then `pnpm biome format --write worker-configuration.d.ts`.
 - Secrets (`BETTER_AUTH_SECRET`, `SUPER_ADMIN_SIGNUP_PASSWORD`, `SITE_URL` (the public address, which MCP sign-in needs), each integration's keys, and `TRUSTED_ORIGINS` for extra addresses) live in `.dev.vars` locally. For production, pipe each value in: `printf '%s' 'value' | pnpm wrangler secret put NAME`. Without a pipe, Wrangler stores an empty value.
+- Keys from the user never go through the chat: add `NAME=''` to `.dev.vars`, open the file for them (`open -e .dev.vars` on macOS, `notepad .dev.vars` on Windows) to paste the key and save, then send it without printing it: `node -e "process.loadEnvFile('.dev.vars'); process.stdout.write(process.env.NAME)" | pnpm wrangler secret put NAME`.
 - Scheduled jobs: `triggers.crons` in `wrangler.jsonc`, handled in `app/worker/scheduled.ts` (see its header). Automatic e-mails need Workers Paid and a company domain; on Free, show the information in the app and offer a `mailto:` link.
 - `pnpm run doctor` checks the local setup.
 

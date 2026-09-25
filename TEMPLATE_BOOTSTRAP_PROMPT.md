@@ -14,7 +14,9 @@ The user is probably not technical. They may have only installed Claude, so deve
 
 ## 1. Start
 
-In two or three sentences, tell the user what will happen: about 30 to 45 minutes of setup, a few requests to approve commands (approving them is safe during setup), one or two Cloudflare pages in their browser, and maybe their computer password once.
+In two or three sentences, tell the user what will happen: about 30 to 45 minutes of setup, one or two Cloudflare pages in their browser, and maybe their computer password once. Claude will ask them to approve its commands: approving them is safe during setup, and when Claude offers to allow a kind of command for the whole session, accepting saves them many clicks.
+
+Check where the folder is. If it is inside a synced folder (a path containing OneDrive, Dropbox, Google Drive or iCloud, or Desktop or Documents on a Mac where `~/Library/Mobile Documents/com~apple~CloudDocs/Desktop` exists), explain that syncing would upload about a gigabyte of app files and can lock them, and ask the user to create a folder in their home folder instead (for example `Apps/<name>`), open it in Claude, and paste this prompt again.
 
 Then ask two questions with `AskUserQuestion`, and nothing else about the app yet:
 
@@ -124,7 +126,8 @@ If git is available: `git init -b main`, set a local identity (`git config user.
 Tell the user, leading with what they need:
 
 - the app's web address;
-- the invitation code, and how colleagues join: open the address, "Créer un compte", enter the code, choose a password.
+- the invitation code, with a short message ready to forward to colleagues: the address, the code, and the three steps to join (open the address, "Créer un compte", enter the code and choose a password);
+- how to come back: to change the app later, open this same folder in Claude and say what they want. Claude reads `APP_BRIEF.md` and carries on, then puts the change online.
 
 Record the Cloudflare account, the D1 name and id, and the deploy date in `APP_BRIEF.md` when you create it; do not show ids to the user.
 
@@ -146,8 +149,9 @@ Interview the user with the `AskUserQuestion` tool over several rounds, usually 
 
 What the template can do, so you propose what works:
 
-- Everyone who has an account sees and changes the app's data; the invitation code is the gate. If some colleagues must not see some data, it goes into a separate app with its own code.
-- Scheduled jobs (syncs, weekly reports) run on the free plan. Automatic e-mails need the Workers Paid plan and a company domain: on the free plan, show the information in the app and add a button that prepares the e-mail in the user's mail app.
+- Everyone who has an account sees and changes all of the app's data; the invitation code is the gate, and there are no roles.
+- Someone who forgets their password asks the app's owner, and Claude gives them a new one (`node scripts/reset-password.mjs <email>`).
+- Scheduled jobs (syncs, weekly reports) run on the free plan. Automatic e-mails need the Workers Paid plan and a company domain: on the free plan, show the information in the app, add a button that prepares the e-mail in the user's mail app, or post to a Slack or Teams channel through a webhook.
 - AI features (summaries, classification, an assistant) only work on the deployed app, within a daily free allowance.
 - When the user is not the administrator of a service to connect, write the message for their administrator (what to create, where, with which permission), and build with sample data or a CSV import until the key arrives.
 
@@ -163,7 +167,9 @@ Once the user has approved the structure, build it on top of the template:
 
 - Build the smallest useful version first, deploy it, share the link, and ask for feedback before adding more.
 - Copy the reference feature for new features (see "The Reference Feature" in `CLAUDE.md`), and the recipes in `AI_AGENT_GUIDE.md`.
-- Connect external services through the shells in `app/integrations/`, following `INTEGRATIONS.md`: test each one with `pnpm integration` before showing it to the user, pipe their keys into `pnpm wrangler secret put`, and never put keys in code.
+- Connect external services through the shells in `app/integrations/`, following `INTEGRATIONS.md`, and test each one with `pnpm integration` before showing it to the user.
+- Keys never go through the chat or into code. Add the key's line to `.dev.vars` (`NAME=''`), open the file for the user (`open -e .dev.vars` on macOS, `notepad .dev.vars` on Windows), and ask them to paste the key between the quotes and save. Check it without printing it, then send it to Cloudflare: `node -e "process.loadEnvFile('.dev.vars'); process.stdout.write(process.env.NAME)" | pnpm wrangler secret put NAME`.
+- When a change is ready and checked, put it online (`--remote` migrations first, then `pnpm run deploy`) and tell the user what to try.
 - After deploying an AI feature, ask the user to try it on the live app while you watch `pnpm wrangler tail` for errors.
 - Apply new migrations with `--remote` before each deploy that needs them.
 

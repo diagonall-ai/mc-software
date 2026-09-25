@@ -170,7 +170,7 @@ function DashboardCommandDialog({
 							}}
 						>
 							<Home className="size-4" />
-							Tableau de bord
+							Accueil
 						</CommandItem>
 						<CommandItem
 							onSelect={() => {
