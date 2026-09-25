@@ -19,9 +19,9 @@
  *   iam.managed.disableServiceAccountKeyCreation. If that is refused, upload
  *   the Sheet as CSV instead.
  * - Secret: GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY, the whole downloaded JSON file.
- *   In .dev.vars, put it on one line between single quotes: double quotes
- *   break the key. In production: `pnpm wrangler secret put
- *   GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY < key.json`.
+ *   In .dev.vars, paste the whole file between single quotes (`NAME='...'`):
+ *   double quotes break the key. Send it to production with the command in
+ *   INTEGRATIONS.md.
  *
  * API facts:
  * - The shell signs a JWT with the key (WebCrypto), trades it for a one-hour
@@ -68,7 +68,7 @@ export class GoogleSheets {
 	 */
 	readRange(spreadsheetId: string, range: string) {
 		return this.#call(
-			`/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`,
+			`/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}`,
 			Schema.Struct({
 				values: Schema.optional(Schema.Array(Schema.Array(Schema.String))),
 			}),
@@ -86,7 +86,7 @@ export class GoogleSheets {
 				withToken(`google:${key.client_email}`, accessToken(key), (token) =>
 					request({
 						...options,
-						headers: { Authorization: `Bearer ${token}` },
+						headers: { ...options.headers, Authorization: `Bearer ${token}` },
 						schema,
 						service: SERVICE,
 						url: `${BASE_URL}${path}`,
@@ -116,12 +116,23 @@ const accessToken = (key: { client_email: string; private_key: string }) =>
 			}),
 			service: SERVICE,
 			url: TOKEN_URL,
-		});
+		}).pipe(
+			// 400 invalid_grant: the key was deleted or disabled, or the clock is off.
+			Effect.mapError((error) =>
+				error.status === 400
+					? invalidKey(
+							"Google l'a refusée. Elle a peut-être été supprimée ou désactivée.",
+							error.detail,
+						)
+					: error,
+			),
+		);
 		return { expiresInSeconds: token.expires_in, value: token.access_token };
 	});
 
-const invalidKey = (hint: string) =>
+const invalidKey = (hint: string, detail?: string) =>
 	new IntegrationError({
+		detail,
 		message: `La clé du compte de service Google n'est pas valide : ${hint}`,
 		reason: "unauthorized",
 		service: SERVICE,

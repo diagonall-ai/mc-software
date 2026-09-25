@@ -83,8 +83,12 @@ export class Zendesk {
 	 * from there next time. Deleted tickets are left out.
 	 */
 	exportTickets(
-		/** `since`: a date such as "2026-09-01", at least a minute ago. */
-		from: { since: string } | { cursor: string },
+		/**
+		 * `since`: a date such as "2026-09-01", at least a minute ago.
+		 * `perPage`: up to 1,000, default 100 (1,000 can exceed the Free plan's
+		 * 10 ms of CPU).
+		 */
+		from: ({ since: string } | { cursor: string }) & { perPage?: number },
 	) {
 		return this.#call("/incremental/tickets/cursor", TicketExport, {
 			query: {
@@ -92,12 +96,17 @@ export class Zendesk {
 					? { cursor: from.cursor }
 					: { start_time: Math.floor(Date.parse(from.since) / 1000) }),
 				exclude_deleted: true,
+				per_page: from.perPage ?? 100,
 			},
 		});
 	}
 
 	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
-		const { subdomain, clientId, clientSecret } = this.#credentials;
+		const { clientId, clientSecret } = this.#credentials;
+		// Accepts "acme", "acme.zendesk.com" or "https://acme.zendesk.com".
+		const subdomain = this.#credentials.subdomain
+			.replace(/^https?:\/\//, "")
+			.split(".")[0];
 		const accessToken = request({
 			json: {
 				client_id: clientId,
@@ -117,14 +126,17 @@ export class Zendesk {
 				value: access_token,
 			})),
 		);
-		return withToken(`zendesk:${subdomain}:${clientId}`, accessToken, (token) =>
-			request({
-				...options,
-				headers: { Authorization: `Bearer ${token}` },
-				schema,
-				service: "Zendesk",
-				url: `https://${subdomain}.zendesk.com/api/v2${path}`,
-			}),
+		return withToken(
+			`zendesk:${subdomain}:${clientId}:${clientSecret}`,
+			accessToken,
+			(token) =>
+				request({
+					...options,
+					headers: { ...options.headers, Authorization: `Bearer ${token}` },
+					schema,
+					service: "Zendesk",
+					url: `https://${subdomain}.zendesk.com/api/v2${path}`,
+				}),
 		);
 	}
 }

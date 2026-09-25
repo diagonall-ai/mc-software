@@ -12,18 +12,22 @@
  * - Also ask for the server's host key fingerprint (the `SHA256:...` line
  *   that `ssh-keygen -lf` prints). The shell refuses any server that does
  *   not present it: that is what stops someone from impersonating the
- *   provider. Without it, the first call fails and shows the fingerprint the
- *   server presented: confirm it with the provider before saving it.
+ *   provider. A server has one key per type (Ed25519, RSA...): the shell
+ *   accepts several fingerprints, and its error names the type it was shown.
+ *   Without any, the first call fails and shows the fingerprint the server
+ *   presented: confirm it with the provider before saving it.
  * - If the provider only lets known IP addresses in, this cannot work:
  *   Workers have no fixed outgoing address. Ask the provider to push the files
  *   to an R2 bucket instead, or upload the CSVs in the app.
  * - Secrets: SFTP_HOST, SFTP_USERNAME, SFTP_PASSWORD or SFTP_PRIVATE_KEY (a
- *   PKCS#8 or OpenSSH key), SFTP_HOST_KEY_FINGERPRINT, and SFTP_PORT if not 22.
+ *   PKCS#8 or OpenSSH key, with SFTP_PRIVATE_KEY_PASSPHRASE if it has one),
+ *   SFTP_HOST_KEY_FINGERPRINT, and SFTP_PORT if not 22.
  *
  * Facts:
- * - Each call opens a connection, does its work and closes it. Failed
- *   connections are retried; a method that writes passes `retries = 0` to
- *   `#session` so it never runs twice.
+ * - Each call opens a connection, does its work and closes it, within 30
+ *   seconds (never past the time the call has left). Failed connections are
+ *   retried; a method that writes passes `retries = 0` to `#session` so it
+ *   never runs twice.
  * - The next methods to add: `sftp.readText(path)` for a CSV,
  *   `sftp.readFile(path)` for bytes, `sftp.stat(path)` for size and date.
  * - Key exchange curve25519 or nistp256, ciphers AES-GCM, AES-CTR or ChaCha20.
@@ -37,7 +41,7 @@ import { AuthError, ProtocolError } from "edgeport/core";
 import { connect, type SftpSession } from "edgeport/sftp";
 import { fingerprint } from "edgeport/ssh";
 import { Effect } from "effect";
-import { IntegrationError, retryTransient } from "./http";
+import { IntegrationError, retryTransient, withinDeadline } from "./http";
 
 const SERVICE = "SFTP";
 
@@ -49,7 +53,9 @@ interface SftpCredentials {
 	password?: string;
 	/** Instead of a password: a PKCS#8 or OpenSSH private key. */
 	privateKey?: string;
-	/** `SHA256:...`: the only server key the shell accepts. */
+	/** The private key's passphrase, if it has one. */
+	privateKeyPassphrase?: string;
+	/** One or more `SHA256:...` fingerprints: the only server keys accepted. */
 	hostKeyFingerprint?: string;
 }
 
@@ -90,53 +96,81 @@ export class Sftp {
 	}
 
 	#session<A>(use: (sftp: SftpSession) => Promise<A>, retries = 3) {
-		const { host, port, username, password, privateKey, hostKeyFingerprint } =
+		const { host, port, username, password, privateKey, privateKeyPassphrase } =
 			this.#credentials;
-		// Accepts the bare fingerprint or the whole line `ssh-keygen -lf` prints.
-		const pinned = hostKeyFingerprint?.match(/SHA256:[A-Za-z0-9+/]+/)?.[0];
-		let presented: string | undefined;
-		return retryTransient(
-			Effect.tryPromise({
-				try: async () => {
-					const sftp = await connect({
-						hostKey: {
-							verify: async (_type, key) => {
-								presented = await fingerprint(key);
-								return presented === pinned;
-							},
+		// Bare fingerprints or whole `ssh-keygen -lf` lines, one or several.
+		const pinned: string[] =
+			this.#credentials.hostKeyFingerprint?.match(/SHA256:[A-Za-z0-9+/]+/g) ??
+			[];
+		let presented: Presented | undefined;
+		const attempt = Effect.tryPromise({
+			try: async (signal) => {
+				const sftp = await connect({
+					hostKey: {
+						verify: async (type, key) => {
+							presented = { fingerprint: await fingerprint(key), type };
+							return pinned.includes(presented.fingerprint);
 						},
-						hostname: host,
-						password,
-						port: port ? Number(port) : 22,
-						privateKey: privateKey ? { pem: privateKey } : undefined,
-						timeoutMs: 15_000,
-						username,
-					});
-					try {
-						return await use(sftp);
-					} finally {
-						await sftp.close();
-					}
-				},
-				catch: (error) => toIntegrationError(error, presented, pinned),
-			}),
+					},
+					hostname: host,
+					password,
+					port: port ? Number(port) : 22,
+					privateKey: privateKey
+						? { passphrase: privateKeyPassphrase, pem: privateKey }
+						: undefined,
+					timeoutMs: 15_000,
+					username,
+				});
+				// Out of time: close the connection instead of leaving it open.
+				const close = () => sftp.close().catch(() => {});
+				if (signal.aborted) {
+					await close();
+					throw new Error("out of time");
+				}
+				signal.addEventListener("abort", close, { once: true });
+				try {
+					return await use(sftp);
+				} finally {
+					signal.removeEventListener("abort", close);
+					await close();
+				}
+			},
+			catch: (error) => toIntegrationError(error, presented, pinned),
+		});
+		return retryTransient(
+			withinDeadline(
+				attempt,
+				"30 seconds",
+				() =>
+					new IntegrationError({
+						message: "Le serveur SFTP n'a pas répondu à temps.",
+						reason: "network",
+						service: SERVICE,
+					}),
+			),
 			retries,
 		);
 	}
 }
 
+interface Presented {
+	type: string;
+	fingerprint: string;
+}
+
 const toIntegrationError = (
 	error: unknown,
-	presented: string | undefined,
-	expected: string | undefined,
+	presented: Presented | undefined,
+	pinned: string[],
 ) => {
 	const detail = String(error);
-	if (presented && presented !== expected) {
+	if (presented && !pinned.includes(presented.fingerprint)) {
+		const shown = `une clé ${presented.type} d'empreinte ${presented.fingerprint}`;
 		return new IntegrationError({
 			detail,
-			message: expected
-				? `Le serveur SFTP présente l'empreinte ${presented}, pas celle attendue. Ne continuez pas sans l'avoir vérifiée auprès du fournisseur.`
-				: `Le serveur SFTP présente l'empreinte ${presented}. Vérifiez-la auprès du fournisseur, puis enregistrez-la dans SFTP_HOST_KEY_FINGERPRINT.`,
+			message: pinned.length
+				? `Le serveur SFTP présente ${shown}, qui n'est pas enregistrée. S'il s'agit d'un autre type de clé que celle donnée par le fournisseur, demandez-lui l'empreinte de sa clé ${presented.type}. Sinon, ne continuez pas sans son accord.`
+				: `Le serveur SFTP présente ${shown}. Vérifiez-la auprès du fournisseur, puis enregistrez-la dans SFTP_HOST_KEY_FINGERPRINT.`,
 			reason: "forbidden",
 			service: SERVICE,
 		});
@@ -144,8 +178,9 @@ const toIntegrationError = (
 	if (error instanceof AuthError) {
 		return new IntegrationError({
 			detail,
-			message:
-				"Le serveur SFTP a refusé l'identifiant, le mot de passe ou la clé.",
+			message: /passphrase/i.test(error.message)
+				? "La clé privée SFTP est protégée par une phrase secrète : enregistrez-la dans SFTP_PRIVATE_KEY_PASSPHRASE."
+				: "Le serveur SFTP a refusé l'identifiant, le mot de passe ou la clé.",
 			reason: "unauthorized",
 			service: SERVICE,
 		});

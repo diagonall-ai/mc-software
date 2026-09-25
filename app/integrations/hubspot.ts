@@ -94,7 +94,10 @@ export class HubSpot {
 	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
 		return request({
 			...options,
-			headers: { Authorization: `Bearer ${this.#serviceKey}` },
+			headers: {
+				...options.headers,
+				Authorization: `Bearer ${this.#serviceKey}`,
+			},
 			schema,
 			service: "HubSpot",
 			url: `${BASE_URL}${path}`,

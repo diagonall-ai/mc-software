@@ -2,20 +2,29 @@
  * Shared plumbing for the third-party API shells in `app/integrations/`.
  *
  * Every shell sends its calls through `request`, so they all behave the same:
- * - a timeout on each attempt (15 seconds by default);
+ * - a timeout on each attempt (15 seconds by default), never past the time
+ *   the call has left;
  * - GET calls retried with exponential backoff and jitter on transient
- *   failures (network errors, 429 and 5xx), honoring the `Retry-After` header;
- *   other methods are not retried unless they opt in, so a write never runs
- *   twice;
+ *   failures (network errors, 429 and 5xx), waiting for `Retry-After` when it
+ *   fits in the time left; other methods are not retried unless they opt in,
+ *   so a write never runs twice;
  * - one typed error, `IntegrationError`, whose `reason` says what went wrong;
  * - response validation with Effect Schema, so a changed API fails loudly
  *   instead of returning `undefined` fields.
  *
- * Server-only: use the shells from oRPC handlers or server functions, never
- * from components, because they carry API keys. See INTEGRATIONS.md.
+ * Server-only: use the shells from oRPC handlers, server functions or jobs,
+ * never from components, because they carry API keys. See INTEGRATIONS.md.
  */
 import { ORPCError } from "@orpc/server";
-import { Data, Duration, Effect, Result, Schedule, Schema } from "effect";
+import {
+	Context,
+	Data,
+	Duration,
+	Effect,
+	Result,
+	Schedule,
+	Schema,
+} from "effect";
 
 export type IntegrationFailureReason =
 	/** 401: the key is missing, wrong, or expired. */
@@ -24,9 +33,9 @@ export type IntegrationFailureReason =
 	| "forbidden"
 	/** 404: the resource does not exist, or the key cannot see it. */
 	| "not_found"
-	/** Other 4xx: the request itself is wrong (bad filter, bad id format...). */
+	/** Other 4xx, or an invalid address: the request itself is wrong. */
 	| "bad_request"
-	/** 429: too many calls. Retried automatically, honoring Retry-After. */
+	/** 429: too many calls. Retried when the wait fits in the time left. */
 	| "rate_limited"
 	/** 5xx: the service failed. Retried automatically. */
 	| "server_error"
@@ -70,7 +79,7 @@ export interface RequestOptions<A> {
 	readonly parse?: "json" | "text";
 	/** Expected response. Declare only the fields you use; others are dropped. */
 	readonly schema: Schema.Decoder<A>;
-	/** Per attempt. Defaults to 15 seconds. */
+	/** Per attempt. Defaults to 15 seconds, and never runs past the time left. */
 	readonly timeout?: Duration.Input;
 	/**
 	 * Retries on transient failures: 3 for GET, 0 for other methods, so a write
@@ -80,14 +89,16 @@ export interface RequestOptions<A> {
 	readonly retries?: number;
 }
 
-/** What a shell's private `call` method takes besides the path and schema. */
+/** What a shell's private `#call` method takes besides the path and schema. */
 export type CallOptions = Omit<
 	RequestOptions<unknown>,
 	"service" | "url" | "schema"
 >;
 
-/** Longest Retry-After we are willing to wait for inside a user request. */
-const MAX_RETRY_AFTER = Duration.seconds(30);
+/** When the current call gives up, in epoch milliseconds. Set by `withTimeLimit`. */
+const Deadline = Context.Reference<number>("integrations/Deadline", {
+	defaultValue: () => Number.POSITIVE_INFINITY,
+});
 
 // Exponential backoff with jitter, stretched to Retry-After when the service
 // sends one.
@@ -101,17 +112,38 @@ const backoff = Schedule.exponential("500 millis").pipe(
 	),
 );
 
+// A path segment that is `.` or `..`, even percent-encoded: once the URL is
+// normalized, it would climb out of the endpoint the shell meant to call.
+const DOT_SEGMENT = /\/(?:\.|%2e){1,2}(?=[/?#]|$)/i;
+
 export const request = <A>(
 	options: RequestOptions<A>,
 ): Effect.Effect<A, IntegrationError> => {
 	const { service, json, form, parse = "json" } = options;
+	const method = options.method ?? "GET";
 
-	const url = new URL(options.url);
-	for (const [key, value] of Object.entries(options.query ?? {})) {
-		if (value !== undefined && value !== null) {
-			url.searchParams.set(key, String(value));
-		}
-	}
+	const url = Effect.try({
+		try: () => {
+			if (DOT_SEGMENT.test(options.url)) {
+				throw new Error("path contains a . or .. segment");
+			}
+			const url = new URL(options.url);
+			for (const [key, value] of Object.entries(options.query ?? {})) {
+				if (value !== undefined && value !== null) {
+					url.searchParams.set(key, String(value));
+				}
+			}
+			return url;
+		},
+		catch: (cause) =>
+			new IntegrationError({
+				detail: `${String(cause)}: ${options.url}`,
+				message: `L'adresse d'appel à ${service} est invalide : vérifiez sa configuration et les identifiants transmis.`,
+				reason: "bad_request",
+				service,
+			}),
+	});
+
 	// A URLSearchParams body sets its own form Content-Type.
 	const init: RequestInit = {
 		body:
@@ -123,45 +155,49 @@ export const request = <A>(
 			...(json !== undefined && { "Content-Type": "application/json" }),
 			...options.headers,
 		},
-		method: options.method ?? "GET",
+		method,
 	};
 
-	const attempt = Effect.tryPromise({
-		try: (signal) => fetch(url, { ...init, signal }),
-		catch: (cause) =>
-			new IntegrationError({
-				detail: String(cause),
-				message: `${service} est injoignable pour le moment.`,
-				reason: "network",
-				service,
-			}),
-	}).pipe(
-		Effect.flatMap((response) =>
-			response.ok
-				? readBody(service, response, parse)
-				: readBody(service, response, "text").pipe(
-						Effect.flatMap((body) =>
-							Effect.fail(errorFromResponse(service, response, String(body))),
-						),
-					),
-		),
-		Effect.timeoutOrElse({
-			duration: options.timeout ?? "15 seconds",
-			orElse: () =>
-				Effect.fail(
+	const attempt = (url: URL) =>
+		withinDeadline(
+			Effect.tryPromise({
+				try: (signal) => fetch(url, { ...init, signal }),
+				catch: (cause) =>
 					new IntegrationError({
-						message: `${service} n'a pas répondu à temps.`,
+						detail: String(cause),
+						message: `${service} est injoignable pour le moment.`,
 						reason: "network",
 						service,
 					}),
+			}).pipe(
+				Effect.flatMap((response) =>
+					response.ok
+						? readBody(service, response, parse)
+						: readBody(service, response, "text").pipe(
+								Effect.flatMap((body) =>
+									Effect.fail(
+										errorFromResponse(service, response, String(body)),
+									),
+								),
+							),
 				),
-		}),
-	);
+			),
+			options.timeout ?? "15 seconds",
+			() =>
+				new IntegrationError({
+					message: `${service} n'a pas répondu à temps.`,
+					reason: "network",
+					service,
+				}),
+		);
 
-	return retryTransient(
-		attempt,
-		options.retries ?? (init.method === "GET" ? 3 : 0),
-	).pipe(
+	return url.pipe(
+		Effect.flatMap((url) =>
+			retryTransient(
+				attempt(url),
+				options.retries ?? (method === "GET" ? 3 : 0),
+			),
+		),
 		Effect.flatMap((body) =>
 			Schema.decodeUnknownEffect(options.schema)(body).pipe(
 				Effect.mapError(
@@ -179,26 +215,77 @@ export const request = <A>(
 };
 
 /**
+ * Runs one attempt with a time limit that never goes past the time the call
+ * has left. `request` does this; use it for shells that do not speak HTTP.
+ */
+export const withinDeadline = <A>(
+	attempt: Effect.Effect<A, IntegrationError>,
+	limit: Duration.Input,
+	onTimeout: () => IntegrationError,
+): Effect.Effect<A, IntegrationError> =>
+	Effect.flatMap(Deadline, (deadline) =>
+		attempt.pipe(
+			Effect.timeoutOrElse({
+				duration: Math.max(
+					0,
+					Math.min(Duration.toMillis(limit), deadline - Date.now()),
+				),
+				orElse: () => Effect.fail(onTimeout()),
+			}),
+		),
+	);
+
+/**
  * Retries transient failures (network, 429, 5xx) with backoff and jitter,
- * waiting for Retry-After when the service sends one. `request` already does
- * this; use it for shells that do not speak HTTP.
+ * waiting for Retry-After, but only when the wait still leaves time for one
+ * more attempt. `request` does this; use it for shells that do not speak HTTP.
  */
 export const retryTransient = <A>(
 	effect: Effect.Effect<A, IntegrationError>,
 	times = 3,
 ): Effect.Effect<A, IntegrationError> =>
-	effect.pipe(
-		Effect.retry({
-			schedule: backoff,
-			times,
-			while: (error) =>
-				error.retryable &&
-				!(
-					error.retryAfter &&
-					Duration.isGreaterThan(error.retryAfter, MAX_RETRY_AFTER)
-				),
-		}),
+	Effect.flatMap(Deadline, (deadline) =>
+		effect.pipe(
+			Effect.retry({
+				schedule: backoff,
+				times,
+				while: (error) =>
+					error.retryable &&
+					Date.now() + Duration.toMillis(error.retryAfter ?? 0) + 2000 <
+						deadline,
+			}),
+		),
 	);
+
+/**
+ * Gives a shell call a total time budget: attempts and Retry-After waits stop
+ * at it, and the call fails when it runs out. `runIntegration` uses it.
+ */
+export const withTimeLimit = <A>(
+	effect: Effect.Effect<A, IntegrationError>,
+	timeout: Duration.Input = "30 seconds",
+): Effect.Effect<A, IntegrationError> =>
+	Effect.suspend(() => {
+		const limit = Duration.toMillis(timeout);
+		return effect.pipe(
+			Effect.provideService(Deadline, Date.now() + limit),
+			// Attempts already stop at the deadline with their service's own
+			// message; this only catches work that ignores it.
+			Effect.timeoutOrElse({
+				duration: limit + 1000,
+				orElse: () =>
+					Effect.fail(
+						new IntegrationError({
+							detail: `time limit of ${limit} ms reached`,
+							message:
+								"Le service externe met trop de temps à répondre. Réessayez dans un instant.",
+							reason: "network",
+							service: "integration",
+						}),
+					),
+			}),
+		);
+	});
 
 /**
  * Runs a shell call from an oRPC handler, a server function or a job. Returns
@@ -211,23 +298,7 @@ export const runIntegration = async <A>(
 	options: { timeout?: Duration.Input } = {},
 ): Promise<A> => {
 	const result = await Effect.runPromise(
-		Effect.result(
-			effect.pipe(
-				Effect.timeoutOrElse({
-					duration: options.timeout ?? "30 seconds",
-					orElse: () =>
-						Effect.fail(
-							new IntegrationError({
-								detail: "runIntegration time limit reached",
-								message:
-									"Le service externe met trop de temps à répondre. Réessayez dans un instant.",
-								reason: "network",
-								service: "integration",
-							}),
-						),
-				}),
-			),
-		),
+		Effect.result(withTimeLimit(effect, options.timeout)),
 	);
 	if (Result.isSuccess(result)) {
 		return result.success;
@@ -244,14 +315,20 @@ export const runIntegration = async <A>(
 export const basicAuth = (username: string, password: string) =>
 	`Basic ${btoa(`${username}:${password}`)}`;
 
-const tokens = new Map<string, { value: unknown; expiresAt: number }>();
+interface CachedToken {
+	readonly value: Promise<unknown>;
+	expiresAt: number;
+}
+
+const tokens = new Map<string, CachedToken>();
 
 /**
  * For services that trade credentials for a short-lived access token: runs
- * `use` with a token reused until a minute before it expires. When the service
- * rejects it (401), fetches a new one and tries once more, since the key itself
- * may be fine. The cache is shared by every request the same Worker instance
- * serves, so key it by the credentials, never by the signed-in user.
+ * `use` with a token reused until a minute before it expires. Parallel calls
+ * wait for the same token fetch. When the service rejects the token (401),
+ * it is dropped and the call tries once more with a new one, since the key
+ * itself may be fine. The cache is shared by every request the same Worker
+ * instance serves: key it by all the credentials, never by the signed-in user.
  */
 export const withToken = <T, A>(
 	key: string,
@@ -261,35 +338,67 @@ export const withToken = <T, A>(
 	>,
 	use: (token: T) => Effect.Effect<A, IntegrationError>,
 ): Effect.Effect<A, IntegrationError> => {
-	const token = Effect.suspend(() => {
+	const current = Effect.sync(() => {
 		const cached = tokens.get(key);
 		if (cached && cached.expiresAt > Date.now()) {
-			return Effect.succeed(cached.value as T);
+			return cached;
 		}
-		return fetchToken.pipe(
-			Effect.map(({ value, expiresInSeconds }) => {
-				tokens.set(key, {
-					expiresAt: Date.now() + (expiresInSeconds - 60) * 1000,
-					value,
-				});
-				return value;
-			}),
-		);
+		// The fetch runs on its own, so a caller running out of time does not
+		// cancel it for the others. Until it settles, it counts as fresh for a
+		// minute at most: a fetch that never settles is not waited on forever.
+		const fresh: CachedToken = {
+			expiresAt: Date.now() + 60_000,
+			value: Effect.runPromise(fetchToken).then(
+				({ value, expiresInSeconds }) => {
+					fresh.expiresAt = Date.now() + (expiresInSeconds - 60) * 1000;
+					return value;
+				},
+			),
+		};
+		fresh.value.catch(() => forgetToken(key, fresh));
+		tokens.set(key, fresh);
+		return fresh;
 	});
-	return token.pipe(
-		Effect.flatMap((value) =>
-			use(value).pipe(
-				Effect.catchIf(
-					(error) => error.reason === "unauthorized",
-					() =>
-						Effect.suspend(() => {
-							tokens.delete(key);
-							return token.pipe(Effect.flatMap(use));
-						}),
+
+	const attempt = (retry: boolean): Effect.Effect<A, IntegrationError> =>
+		current.pipe(
+			Effect.flatMap((cached) =>
+				Effect.tryPromise({
+					try: () => cached.value as Promise<T>,
+					catch: (error) =>
+						error instanceof IntegrationError
+							? error
+							: new IntegrationError({
+									detail: String(error),
+									message: "Impossible d'obtenir un accès au service.",
+									reason: "network",
+									service: key.split(":")[0],
+								}),
+				}).pipe(
+					Effect.flatMap((token) =>
+						use(token).pipe(
+							Effect.catchIf(
+								(error) => retry && error.reason === "unauthorized",
+								() =>
+									Effect.suspend(() => {
+										forgetToken(key, cached);
+										return attempt(false);
+									}),
+							),
+						),
+					),
 				),
 			),
-		),
-	);
+		);
+
+	return attempt(true);
+};
+
+// Drops a token, unless a parallel call already replaced it.
+const forgetToken = (key: string, entry: CachedToken) => {
+	if (tokens.get(key) === entry) {
+		tokens.delete(key);
+	}
 };
 
 // A failing key is a server configuration problem, not the app user's session,
@@ -332,6 +441,7 @@ const errorFromResponse = (
 ): IntegrationError => {
 	const status = response.status;
 	const detail = body.slice(0, 500);
+	const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
 
 	if (status === 401) {
 		return new IntegrationError({
@@ -363,9 +473,11 @@ const errorFromResponse = (
 	if (status === 429) {
 		return new IntegrationError({
 			detail,
-			message: `${service} limite le nombre d'appels. Réessayez dans un instant.`,
+			message: retryAfter
+				? `${service} limite le nombre d'appels. Réessayez dans ${Math.ceil(Duration.toSeconds(retryAfter))} secondes.`
+				: `${service} limite le nombre d'appels. Réessayez dans un instant.`,
 			reason: "rate_limited",
-			retryAfter: parseRetryAfter(response.headers.get("retry-after")),
+			retryAfter,
 			service,
 			status,
 		});
@@ -375,6 +487,7 @@ const errorFromResponse = (
 			detail,
 			message: `${service} rencontre un problème de son côté.`,
 			reason: "server_error",
+			retryAfter,
 			service,
 			status,
 		});

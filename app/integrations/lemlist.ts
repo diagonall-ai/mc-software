@@ -81,7 +81,10 @@ export class Lemlist {
 	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
 		return request({
 			...options,
-			headers: { Authorization: basicAuth("", this.#apiKey) },
+			headers: {
+				...options.headers,
+				Authorization: basicAuth("", this.#apiKey),
+			},
 			schema,
 			service: "Lemlist",
 			url: `${BASE_URL}${path}`,

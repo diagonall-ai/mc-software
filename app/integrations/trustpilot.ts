@@ -80,19 +80,23 @@ export class Trustpilot {
 			orderBy?: "createdat.desc" | "createdat.asc" | "stars.desc" | "stars.asc";
 		} = {},
 	) {
-		return this.#call(`/business-units/${businessUnitId}/reviews`, ReviewPage, {
-			query: {
-				orderBy: options.orderBy ?? "createdat.desc",
-				page: options.page,
-				perPage: options.perPage ?? 100,
+		return this.#call(
+			`/business-units/${encodeURIComponent(businessUnitId)}/reviews`,
+			ReviewPage,
+			{
+				query: {
+					orderBy: options.orderBy ?? "createdat.desc",
+					page: options.page,
+					perPage: options.perPage ?? 100,
+				},
 			},
-		});
+		);
 	}
 
 	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
 		return request({
 			...options,
-			headers: { apikey: this.#apiKey },
+			headers: { ...options.headers, apikey: this.#apiKey },
 			schema,
 			service: "Trustpilot",
 			url: `${BASE_URL}${path}`,

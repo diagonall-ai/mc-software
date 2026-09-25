@@ -10,7 +10,7 @@ A shell ships with one example method. When the user needs more data from a serv
 |---|---|---|---|
 | Pennylane | `pennylane.ts` | `PENNYLANE_API_TOKEN` | Essentiel plan or higher; one token per company |
 | Tableau | `tableau.ts` | `TABLEAU_HOST`, `TABLEAU_SITE`, `TABLEAU_TOKEN_NAME`, `TABLEAU_TOKEN_SECRET` | One session per token; data sources need "API Access" for VizQL |
-| SFTP | `sftp.ts` | `SFTP_HOST`, `SFTP_USERNAME`, `SFTP_PASSWORD` or `SFTP_PRIVATE_KEY`, `SFTP_HOST_KEY_FINGERPRINT` (`SFTP_PORT`) | Pin the server's fingerprint; fails if the provider requires a fixed IP |
+| SFTP | `sftp.ts` | `SFTP_HOST`, `SFTP_USERNAME`, `SFTP_PASSWORD` or `SFTP_PRIVATE_KEY` (`SFTP_PRIVATE_KEY_PASSPHRASE`), `SFTP_HOST_KEY_FINGERPRINT` (`SFTP_PORT`) | Pin the server's fingerprint; needs Workers Paid; fails if the provider requires a fixed IP |
 | Google Sheets | `google-sheets.ts` | `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY` | Recent Google Cloud organizations block key creation by default |
 | Zendesk | `zendesk.ts` | `ZENDESK_SUBDOMAIN`, `ZENDESK_CLIENT_ID`, `ZENDESK_CLIENT_SECRET` | Use an OAuth client: API tokens are being retired |
 | Trustpilot | `trustpilot.ts` | `TRUSTPILOT_API_KEY` | Needs the API Module (Premium add-on, or Enterprise) |
@@ -31,25 +31,25 @@ export class Pennylane {
 
 Every call gets, from `request` in `http.ts`:
 
-- a 15-second timeout per attempt;
-- for GET, up to 3 retries with exponential backoff and jitter on network errors, 429 and 5xx, waiting for `Retry-After` when the service sends one (up to 30 seconds). Other methods are not retried unless they pass `retries`, so a write never runs twice;
+- a 15-second timeout per attempt, never past the time the call has left;
+- for GET, up to 3 retries with exponential backoff and jitter on network errors, 429 and 5xx. When the service sends `Retry-After`, the retry waits for it if the wait fits in the time left, and fails at once otherwise. Other methods are not retried unless they pass `retries`, so a write never runs twice;
+- a refusal of any URL whose path climbs with `.` or `..`, so an id cannot reach another endpoint;
 - response validation with Effect Schema: only the declared fields come back, and a changed API fails loudly;
 - one error type, `IntegrationError`, with a `reason` and a French `message` the user can read.
 
-`runIntegration` then gives up after 30 seconds in total, so a page never hangs on a slow service.
+`runIntegration` gives each call 30 seconds in total, so a page never hangs on a slow service; a job can allow more.
 
-Services that trade credentials for a short-lived token (Zendesk, Google Sheets, Tableau) go through `withToken`: it reuses the token across the requests one Worker instance serves, and when the service rejects it, fetches a new one and tries once more before blaming the key.
+Services that trade credentials for a short-lived token (Zendesk, Google Sheets, Tableau) go through `withToken`: it reuses the token across the requests one Worker instance serves, parallel calls wait for the same token fetch, and when the service rejects the token, it fetches a new one and tries once more before blaming the key.
 
-SFTP is not HTTP: `sftp.ts` uses [edgeport](https://github.com/gmitch215/edgeport), an SSH and SFTP client written for Workers, and gets the same retries and errors through `retryTransient` and `IntegrationError`.
+SFTP is not HTTP: `sftp.ts` uses [edgeport](https://github.com/gmitch215/edgeport), an SSH and SFTP client written for Workers, and gets the same time limits, retries and errors through `withinDeadline`, `retryTransient` and `IntegrationError`.
 
 ## Connect A Service With The User
 
 1. Read the shell's header comment. Explain in plain words who must create the key and where, and check the plan requirement. Use `AskUserQuestion` for "Who is your admin on X?" or "Which plan do you have?".
-2. The user creates the key in their browser and pastes it into the chat. Ask for a read-only key whenever the service offers one.
-3. Store it, never in code. A secret is named after the shell file and the `init` field it fills, in capitals: `pennylane.ts` + `apiToken` is `PENNYLANE_API_TOKEN`, `google-sheets.ts` + `serviceAccountKey` is `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY`. The test command relies on it.
-   - locally: add `NAME=value` to `.dev.vars`;
+2. A key never goes through the chat. Add `NAME=''` to `.dev.vars` and open the file for the user (`open -e .dev.vars` on macOS, `notepad .dev.vars` on Windows). They create the key in their browser, paste it between the quotes and save. Ask for a read-only key whenever the service offers one. A secret is named after the shell file and the `init` field it fills, in capitals: `pennylane.ts` + `apiToken` is `PENNYLANE_API_TOKEN`, `google-sheets.ts` + `serviceAccountKey` is `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY`. The test command relies on it.
+3. Then do the rest yourself, without printing the key:
    - types: run `pnpm wrangler types worker-configuration.d.ts -c wrangler.jsonc --include-runtime false` so `env.NAME` is typed;
-   - production: pipe the value in, `printf '%s' 'value' | pnpm wrangler secret put NAME` (PowerShell: `'value' | pnpm wrangler secret put NAME`). Without a pipe, Wrangler stores an empty value.
+   - production: `node -e "process.loadEnvFile('.dev.vars'); process.stdout.write(process.env.NAME)" | pnpm wrangler secret put NAME`, which works in PowerShell too. Without a pipe, Wrangler stores an empty value.
 4. Test the connection right away with `pnpm integration` (next section), before building any screen.
 5. Note in `APP_BRIEF.md` which services are connected, whose account each key belongs to, and when it expires.
 
@@ -60,14 +60,15 @@ Run every new or changed method against the real service before wiring it into t
 ```bash
 pnpm integration pennylane listSupplierInvoices '{"limit": 2}'
 pnpm integration google-sheets readRange 1AbCdEf "Clients!A1:C5"
-pnpm integration zendesk exportTickets '{"since": "2026-09-01"}'
+pnpm integration zendesk exportTickets '{"since": "2026-09-01", "perPage": 2}'
 ```
 
-- It reads the secrets from `.dev.vars` and prints their names, never their values.
-- Arguments are read as JSON when they parse (`'{"limit": 2}'`, `42`, `true`) and as text otherwise. Quote a number that must stay text: `'"12345"'`.
+- It reads the secrets from `.dev.vars`, which win over the terminal's variables, and masks their values in everything it prints.
+- Arguments are read as JSON when they parse (`'{"limit": 2}'`, `42`, `true`) and as text otherwise. Quote a number that must stay text: `'"12345"'`. Windows PowerShell 5.1 strips the quotes of JSON typed on the command line: write it to a file and pass `@args.json`.
 - It prints each HTTP call (method, URL, status, time), then the result, or the `reason`, French `message` and `detail` of the error. It exits with 1 on failure.
+- Like the app, a call gets 30 seconds; a method meant for a sync job can pass `--timeout "5 minutes"`.
 - `pnpm integration` alone lists the shells; `pnpm integration pennylane` lists its methods.
-- Ask for two or three items (`limit`): enough to see the shape, and less customer data in the conversation.
+- Ask for two or three items (`limit`, `perPage`): enough to see the shape, and less customer data in the conversation.
 - Not sure what the service returns? Declare the method with `Schema.Unknown`, run it, then declare the fields you need from the real response.
 - Third-party APIs work from localhost: no deploy needed (only Workers AI needs one). SFTP too: the command gives edgeport a Node stand-in for Workers' TCP sockets.
 
@@ -92,9 +93,10 @@ When a call fails, the `reason` says why:
 3. Declare only the fields the app uses. `Schema.NullOr(...)` for fields that can be `null`, `Schema.optional(...)` for fields that can be missing. Keep money amounts as strings, and convert to cents before adding them.
 4. Stay read-only. Before adding a method that writes, sends a message or spends credits, ask the user. Writes are never retried by default; a POST that only reads, like a HubSpot search, can pass `retries: 3`.
 5. Take plain JSON arguments (text, numbers, booleans, lists, objects): no `Date` or class instances, so the test command, oRPC and MCP can all pass them.
-6. Return one page and its cursor. For every page at once, add a second method that loops (see below).
-7. Add the scope or permission the endpoint needs to the header comment.
-8. Run it with `pnpm integration` and fix what it reports.
+6. Put a value that comes from outside (an id, a name) into the path with `encodeURIComponent`, and check its format in the oRPC contract, for example `z.uuid()` for Tableau ids.
+7. Return one page and its cursor, with a page-size option so a test can ask for two items. For every page at once, add a second method that loops (see below).
+8. Add the scope or permission the endpoint needs to the header comment.
+9. Run it with `pnpm integration` and fix what it reports.
 
 ## Call It From The App
 
@@ -137,7 +139,7 @@ listAllSupplierInvoices(filter?: PennylaneFilter[]) {
 }
 ```
 
-The keys belong to the company, not to one user: every signed-in user can read what a shell returns. Data some colleagues must not see (finance, HR) belongs in a separate app with its own invitation code: ask the user before building the page.
+Everyone who can sign in sees what the integrations return, like the rest of the app's data: the invitation code is the gate.
 
 ## Sync Into D1
 
@@ -162,7 +164,7 @@ Most of these services have tight quotas: Trustpilot about 550 calls a day, Goog
 1. Research it: docs, OpenAPI file (many docs sites publish `llms.txt`, or a `.md` version of each page), auth, rate limits, pagination, who creates the key and on which plan.
 2. Copy the closest shell: `pennylane.ts` for a plain key, `zendesk.ts` for credentials traded for a token, `tableau.ts` for a sign-in session, `sftp.ts` for a protocol other than HTTP (edgeport also speaks FTP, IMAP, SMTP and more).
 3. Write the header comment first: it is the guide for getting the key.
-4. Keep the shape: `static init({ ... })`, one example method, a private `#call`, everything through `request`. Never import `cloudflare:workers` in a shell: credentials come in through `init`, which is what lets `pnpm integration` run it.
+4. Keep the shape: `static init({ ... })`, one example method, a private `#call`, everything through `request` (or `withinDeadline` and `retryTransient` for a protocol other than HTTP). Never import `cloudflare:workers` in a shell: credentials come in through `init`, which is what lets `pnpm integration` run it.
 5. Name the secrets `<FILE>_<INIT_FIELD>` and try the example method with `pnpm integration`.
 6. Add a row to the table above.
 
@@ -172,4 +174,4 @@ Most of these services have tight quotas: Trustpilot about 550 calls a day, Goog
 - An `Effect` is a description of work; nothing runs until `runIntegration` runs it.
 - Only `app/integrations/` and `scripts/` may import `effect`; Biome's `noRestrictedImports` rule enforces it. Effect also brings its own Schema next to the app's zod: use Effect Schema for API responses in the shells, zod everywhere else.
 - v4 names differ from most examples online: `Result` instead of `Either`, `Effect.result`, `Schema.decodeUnknownEffect`, `Schema.Decoder<A>`, `Duration.Input`. See the [v3 to v4 migration guide](https://github.com/Effect-TS/effect-smol/blob/main/MIGRATION.md).
-- `pnpm integration:check` checks retries, error mapping, the time limit, the Google token signature and a rejected token being replaced, against a fake server, without keys. Run it after changing `http.ts`.
+- `pnpm integration:check` checks retries and `Retry-After`, the time limits, error mapping, refused paths, the token cache (reuse, expiry, sharing, replacement), the Google token signature and Tableau's sign-in, against a fake server, without keys. Run it after changing `http.ts`.

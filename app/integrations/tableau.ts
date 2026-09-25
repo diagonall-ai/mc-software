@@ -90,14 +90,19 @@ export class Tableau {
 				value,
 			]),
 		);
-		return this.#call(`/views/${viewId}/data`, Schema.String, {
-			parse: "text",
-			query: { ...filters, maxAge: options.maxAgeMinutes },
-		});
+		return this.#call(
+			`/views/${encodeURIComponent(viewId)}/data`,
+			Schema.String,
+			{
+				parse: "text",
+				query: { ...filters, maxAge: options.maxAgeMinutes },
+			},
+		);
 	}
 
 	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {
-		const { host, site, tokenName, tokenSecret } = this.#credentials;
+		const { site, tokenName, tokenSecret } = this.#credentials;
+		const host = origin(this.#credentials.host);
 		const signIn = request({
 			json: {
 				credentials: {
@@ -120,13 +125,15 @@ export class Tableau {
 		// When another Worker instance signs in with the same PAT, our session
 		// ends and withToken signs in again.
 		// ponytail: share one session through a Durable Object if it happens often.
+		// The secret is part of the key: two tokens with the same name never
+		// share a session.
 		return withToken(
-			`tableau:${host}:${site}:${tokenName}`,
+			`tableau:${host}:${site}:${tokenName}:${tokenSecret}`,
 			signIn,
 			({ siteId, token }) =>
 				request({
 					...options,
-					headers: { "X-Tableau-Auth": token },
+					headers: { ...options.headers, "X-Tableau-Auth": token },
 					schema,
 					service: "Tableau",
 					url: `${host}/api/${API_VERSION}/sites/${siteId}${path}`,
@@ -134,3 +141,12 @@ export class Tableau {
 		);
 	}
 }
+
+/** Accepts the bare host or the whole address copied from the browser. */
+const origin = (host: string) => {
+	try {
+		return new URL(host.includes("://") ? host : `https://${host}`).origin;
+	} catch {
+		return host; // request() reports the invalid address.
+	}
+};
