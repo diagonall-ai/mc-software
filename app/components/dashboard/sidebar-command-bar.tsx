@@ -172,18 +172,20 @@ function DashboardCommandDialog({
 							<Home className="size-4" />
 							Accueil
 						</CommandItem>
-						<CommandItem
-							onSelect={() => {
-								onOpenChange(false);
-								void navigate({
-									to: "/dashboard/assistant",
-									viewTransition: true,
-								});
-							}}
-						>
-							<Sparkles className="size-4" />
-							Assistant
-						</CommandItem>
+						{import.meta.env.DEV && (
+							<CommandItem
+								onSelect={() => {
+									onOpenChange(false);
+									void navigate({
+										to: "/dashboard/assistant",
+										viewTransition: true,
+									});
+								}}
+							>
+								<Sparkles className="size-4" />
+								Assistant
+							</CommandItem>
+						)}
 						<CommandItem
 							onSelect={() => {
 								onOpenChange(false);

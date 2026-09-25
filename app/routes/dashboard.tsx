@@ -67,10 +67,11 @@ import { cn } from "~/lib/utils";
 
 const dashboardLinks = [
 	{ to: "/dashboard", label: "Accueil", icon: Home },
-	{ to: "/dashboard/assistant", label: "Assistant", icon: Sparkles },
-	// A reference for building screens: listed in local dev only.
+	// References for building (the example assistant, the screens): listed in
+	// local dev only. An app that ships its own assistant lists it for everyone.
 	...(import.meta.env.DEV
 		? ([
+				{ to: "/dashboard/assistant", label: "Assistant", icon: Sparkles },
 				{
 					to: "/dashboard/design-system",
 					label: "Design System",

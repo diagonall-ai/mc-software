@@ -44,15 +44,17 @@ function WelcomePage() {
 					Mon profil
 					<ArrowRight className="size-4" />
 				</Button>
-				<Button
-					className="justify-between"
-					nativeButton={false}
-					render={<Link to="/dashboard/assistant" viewTransition />}
-					variant="outline"
-				>
-					Assistant
-					<ArrowRight className="size-4" />
-				</Button>
+				{import.meta.env.DEV && (
+					<Button
+						className="justify-between"
+						nativeButton={false}
+						render={<Link to="/dashboard/assistant" viewTransition />}
+						variant="outline"
+					>
+						Assistant
+						<ArrowRight className="size-4" />
+					</Button>
+				)}
 			</CardContent>
 		</Card>
 	);
