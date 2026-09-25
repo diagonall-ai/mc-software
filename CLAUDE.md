@@ -17,7 +17,7 @@ The user is not technical.
 - Before building, read `AI_AGENT_GUIDE.md` and the closest existing example, and copy its pattern.
 - Check your work in the browser preview. With the dev server running, `pnpm seed:dev` creates a local account: `test@test.com` / `testtest`.
 - Numbers must be right, and the user cannot read code. Before calling a calculation done (totals, gaps, forecasts, matching, anything that decides money or stock), ask for a real past case with the result they know, such as last month's figures or a file they already processed by hand, and show that the tool gets the same result. When it differs, find out why before going on.
-- When a change is ready and checked, put it online: apply new migrations with `--remote`, run `pnpm run deploy`, and give the user the link and what to try.
+- When a change is ready and checked, put it online with `pnpm run deploy` (it applies new migrations to the online database first), and give the user the link and what to try.
 - When a feature is done: check its numbers against a known case, decide its MCP tools, offer a Slack alert if it runs jobs or uses a service, put it online, update `APP_BRIEF.md` (Pages, Services, Next, History), and tell the user what to try and what you suggest next.
 - If a deploy breaks the live app, roll back at once with `pnpm wrangler rollback` (it restores the previous code, not the database), tell the user, then fix it.
 - Someone forgot their password: `node scripts/reset-password.mjs <email>` gives the deployed account a temporary password, for the owner to pass on.

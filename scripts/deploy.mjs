@@ -1,5 +1,6 @@
 /**
- * `pnpm run deploy`: builds, deploys, and on the first deploy stores the
+ * `pnpm run deploy`: builds, creates any missing tables in the online
+ * database (new migrations), deploys, and on the first deploy stores the
  * printed address as the SITE_URL secret (MCP sign-in needs it). An existing
  * SITE_URL, such as a custom domain, is left as it is.
  */
@@ -8,6 +9,9 @@ import { execSync } from "node:child_process";
 const config = "-c dist/server/wrangler.json";
 
 execSync("pnpm build", { stdio: "inherit" });
+execSync("wrangler d1 migrations apply DB --remote -c wrangler.jsonc", {
+	stdio: "inherit",
+});
 
 const output = execSync(`wrangler deploy ${config}`, {
 	encoding: "utf8",

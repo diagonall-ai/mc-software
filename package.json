@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "wrangler d1 migrations apply DB --local -c wrangler.jsonc && vite",
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "node scripts/deploy.mjs",
