@@ -86,6 +86,44 @@ For a spreadsheet, a PDF, a Word document or a photo the user uploads: a budget,
 4. **Storage.** Save what the screens need in D1 through a repository. The file itself is not kept.
 5. **Originals.** To keep files (signed documents, IDs), add an R2 bucket: `pnpm wrangler r2 bucket create <app-slug>-files`, an `r2_buckets` binding in `wrangler.jsonc`, then regenerate the types. Store each file's key and details in D1. R2 must be turned on once in the Cloudflare dashboard, which may ask for a payment method even for the free 10 GB: send the user there.
 
+## Generate A PDF
+
+For an invoice, a report, a delivery note or a label to download or print. Use Takumi PDF (`takumi-pdf`), not a headless browser or another PDF library. Its docs, as Markdown: `https://takumi.kane.tw/docs/pdf.md`, and each linked guide with `.md` added to its path (pagination and repeated table headers, images, headers and footers).
+
+1. **Install.** `pnpm add takumi-pdf`.
+2. **Build it in the browser.** On the free plan a request gets 10 ms of CPU, too little to lay out a PDF, and the engine (4 MB) would weigh down the Worker. Built in the browser, it costs the Worker nothing, and the engine loads on the first click only. Put this helper in `app/lib/pdf.ts`:
+
+   ```tsx
+   import type { ReactNode } from "react";
+
+   /** Builds a PDF in the browser and downloads it. The engine loads on the first call. */
+   export async function downloadPdf(content: ReactNode, fileName: string) {
+   	const [{ default: init, render }, { default: wasmUrl }] = await Promise.all([
+   		import("takumi-pdf/no-init"),
+   		import("takumi-pdf/wasm-url"),
+   	]);
+   	await init({ module_or_path: wasmUrl });
+   	const font = (file: string) =>
+   		new URL(`/fonts/${file}`, window.location.origin).href;
+   	const pdf = await render(content, {
+   		size: "a4",
+   		fonts: [font("WhyteInktrap-Regular.woff2"), font("WhyteInktrap-Bold.woff2")],
+   	});
+   	const blob = new Blob([new Uint8Array(pdf)], { type: "application/pdf" });
+   	const link = document.createElement("a");
+   	link.href = URL.createObjectURL(blob);
+   	link.download = fileName;
+   	link.click();
+   	setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+   }
+   ```
+
+3. **Document.** A component in `app/components/<feature>/`, fed with the data the page already loaded. Style it with the `style` prop: the app's stylesheet and Tailwind classes do not apply, so write plain colors, black on white like a printed page, with `fontFamily: "Whyte Inktrap"`. For page numbers, pass `footer` with `PageNumber` and `TotalPages` from `takumi-pdf/primitives`.
+4. **Button.** "Télécharger le PDF" in `DashboardHeaderActionsPortal`, calling `downloadPdf(<Invoice invoice={invoice} />, "facture-1042.pdf")`. It works in local dev too.
+5. **Check.** Open the file and compare it with the page, or with a document the user made by hand.
+
+A PDF built on the server (a scheduled job, an MCP tool returning a file) needs Workers Paid ($5 a month) and the default `takumi-pdf` import: tell the user before building it.
+
 ## Give The Assistant A Tool
 
 1. In `getTools()` in `app/agents/assistant.ts`, add a `tool({ description, inputSchema, execute })`. `execute` calls an `app/db/` repository with `this.name` as the user id.

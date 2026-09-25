@@ -30,6 +30,7 @@ The user is not technical.
 - oRPC contract and router, with the OpenAPI docs generated from them. Chosen procedures are also MCP tools.
 - shadcn/ui on Base UI (`base-vega`), Tailwind CSS v4, lucide icons.
 - TanStack AI for one-off AI tasks, Cloudflare Think for agents.
+- PDF: Takumi PDF (`takumi-pdf`) generates them, built in the browser (see "Generate A PDF" in `AI_AGENT_GUIDE.md`); `readFileAsText` reads uploaded ones.
 - Third-party APIs: one Effect v4 shell class per service in `app/integrations/`.
 - `pnpm` only. Deploy with `pnpm run deploy`: plain `pnpm deploy` is a different pnpm command.
 
