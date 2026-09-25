@@ -101,6 +101,7 @@ Connect external services through the shells in `app/integrations/`, following `
 - Every call goes through `request` in `app/integrations/http.ts` (timeouts, retries, typed errors, Schema validation); shells that do not speak HTTP, like SFTP, use its `retryTransient` and `IntegrationError`. Do not call `fetch` directly for a third-party API.
 - Run shells only on the server (oRPC handlers, server functions, scheduled jobs), through `runIntegration`.
 - Credentials are Worker secrets: `.dev.vars` locally, `pnpm wrangler secret put` in production. Never in code or in the browser.
+- Data from another app built from this template: that app exposes it as routes, and this one reads it with a copy of `app/integrations/other-app.ts` (see "Share Data Between Apps" in `INTEGRATIONS.md`).
 - Stay read-only. Ask the user before adding a method that writes, sends messages, or spends credits.
 - Test every new or changed shell method against the real service with `pnpm integration <shell> <method> [args]` before wiring it into the app, and fix what it reports. The user should never be the first to hit an integration error.
 

@@ -96,7 +96,7 @@ For a second agent, copy the `Assistant` class, export it from `app/server.ts`, 
 
 ## Connect A Third-Party API
 
-Follow `INTEGRATIONS.md`.
+Follow `INTEGRATIONS.md`. To read another app's data, see "Share Data Between Apps" there; to change something in another tool, see "Write Actions".
 
 ## Local Development
 

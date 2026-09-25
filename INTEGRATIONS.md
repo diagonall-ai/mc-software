@@ -16,6 +16,7 @@ A shell ships with one example method. When the user needs more data from a serv
 | Trustpilot | `trustpilot.ts` | `TRUSTPILOT_API_KEY` | Needs the API Module (Premium add-on, or Enterprise) |
 | HubSpot | `hubspot.ts` | `HUBSPOT_SERVICE_KEY` | Use a Service Key, not a private app |
 | Lemlist | `lemlist.ts` | `LEMLIST_API_KEY` | The key can do everything; enrichment spends credits |
+| Another app from this template | `other-app.ts` | `OTHER_APP_BASE_URL`, `OTHER_APP_API_KEY` | Copy it once per app; the key reads what its account sees |
 
 The comment at the top of each shell is the source of truth: docs and OpenAPI links, who creates the key and where, plan requirements, limits, pagination and gotchas.
 
@@ -171,6 +172,18 @@ Most of these services have tight quotas: Trustpilot about 550 calls a day, Goog
 - save resume points such as Zendesk's `after_cursor`;
 - give a sync job more time than a page: `runIntegration(effect, { timeout: "5 minutes" })`;
 - on the Free plan, each request or cron run gets 10 ms of CPU and 50 outgoing requests (10,000 on Paid): sync one page per run, save the resume point, and let the next run carry on. AI classification of synced items counts against 10,000 neurons a day: classify in batches, and spread a large backlog over several days.
+
+## Share Data Between Apps
+
+When one app's data serves others (a metrics dictionary, a shared customer list), the app that owns it exposes it, and the others read it:
+
+1. In the owning app, the data is an oRPC capability like any other, with a `description` that says what it returns. Add MCP tools too if assistants should read it.
+2. In the reading app, copy `app/integrations/other-app.ts` as `<name>-app.ts`. The class and the secrets follow the file name (`metrics-app.ts`: `MetricsApp`, `METRICS_APP_BASE_URL`, `METRICS_APP_API_KEY`). Add one method per route, from the owning app's `/api/docs`.
+3. Access: in the owning app, create an account for the reading app with the invitation code, sign in with it, and create an API key ("Clés API"). Store the address and the key in the reading app with the flow in "Connect A Service With The User".
+4. Test with `pnpm integration <name>-app getProfile`, then with the real methods.
+5. If the screens read it often, sync it into D1 (see "Sync Into D1"), so an outage of the owning app does not break every page.
+
+Any other REST API with an OpenAPI spec and a key, such as an internal data connector, works the same way.
 
 ## Sources Without An API Shell
 
