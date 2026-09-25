@@ -288,6 +288,20 @@ export const withTimeLimit = <A>(
 	});
 
 /**
+ * Called when a service refuses its key (401 or 403): someone has to create a
+ * new one. The Worker entry (app/server.ts) posts it to Slack; nothing listens
+ * in `pnpm integration`, which runs outside the Worker.
+ */
+let keyRejectedListener:
+	| ((error: IntegrationError) => Promise<void>)
+	| undefined;
+export const onKeyRejected = (
+	listener: (error: IntegrationError) => Promise<void>,
+) => {
+	keyRejectedListener = listener;
+};
+
+/**
  * Runs a shell call from an oRPC handler, a server function or a job. Returns
  * the result, or logs the failure and throws an `ORPCError` whose message the
  * user can read. It gives up after 30 seconds so a page never hangs on a slow
@@ -308,6 +322,9 @@ export const runIntegration = async <A>(
 		detail: error.detail,
 		status: error.status,
 	});
+	if (error.reason === "unauthorized" || error.reason === "forbidden") {
+		await keyRejectedListener?.(error).catch(() => {});
+	}
 	throw new ORPCError(ORPC_CODES[error.reason], { message: error.message });
 };
 

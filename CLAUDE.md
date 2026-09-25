@@ -16,7 +16,9 @@ The user is not technical.
 - When something fails, fix it before asking the user anything. Do not end on "next, I will…": do it.
 - Before building, read `AI_AGENT_GUIDE.md` and the closest existing example, and copy its pattern.
 - Check your work in the browser preview. With the dev server running, `pnpm seed:dev` creates a local account: `test@test.com` / `testtest`.
+- Numbers must be right, and the user cannot read code. Before calling a calculation done (totals, gaps, forecasts, matching, anything that decides money or stock), ask for a real past case with the result they know, such as last month's figures or a file they already processed by hand, and show that the tool gets the same result. When it differs, find out why before going on.
 - When a change is ready and checked, put it online: apply new migrations with `--remote`, run `pnpm run deploy`, and give the user the link and what to try.
+- If a deploy breaks the live app, roll back at once with `pnpm wrangler rollback` (it restores the previous code, not the database), tell the user, then fix it.
 - Someone forgot their password: `node scripts/reset-password.mjs <email>` gives the deployed account a temporary password, for the owner to pass on.
 
 ## Stack
@@ -86,6 +88,7 @@ The profile is built the way every feature should be. Copy it:
 - After changing bindings, regenerate the types: `pnpm wrangler types worker-configuration.d.ts -c wrangler.jsonc --include-runtime false`, then `pnpm biome format --write worker-configuration.d.ts`.
 - Secrets (`BETTER_AUTH_SECRET`, `SUPER_ADMIN_SIGNUP_PASSWORD`, `SITE_URL` (the public address, which MCP sign-in needs), each integration's keys, and `TRUSTED_ORIGINS` for extra addresses) live in `.dev.vars` locally. For production, pipe each value in: `printf '%s' 'value' | pnpm wrangler secret put NAME`. Without a pipe, Wrangler stores an empty value.
 - Keys from the user never go through the chat: add `NAME=''` to `.dev.vars`, open the file for them (`open -e .dev.vars` on macOS, `notepad .dev.vars` on Windows) to paste the key and save, then send it without printing it: `node -e "process.loadEnvFile('.dev.vars'); process.stdout.write(process.env.NAME)" | pnpm wrangler secret put NAME`.
+- Alerts: `notify()` in `app/lib/notify.server.ts` posts to the team's Slack channel once `SLACK_WEBHOOK_URL` is set. A failed scheduled job and a service that refuses its key post there on their own. When an app gets scheduled jobs or integrations, offer to connect a channel (see "Slack" in `INTEGRATIONS.md`).
 - Scheduled jobs: `triggers.crons` in `wrangler.jsonc`, handled in `app/worker/scheduled.ts` (see its header). Automatic e-mails need Workers Paid and a company domain; on Free, show the information in the app and offer a `mailto:` link.
 - `pnpm run doctor` checks the local setup.
 

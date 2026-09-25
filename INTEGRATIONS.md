@@ -91,12 +91,33 @@ When a call fails, the `reason` says why:
 1. Find the endpoint in the docs linked at the top of the shell. Prefer the OpenAPI definition when there is one.
 2. Copy the example method and name it after what it does: `listSuppliers`, `getInvoice`, `exportTickets`.
 3. Declare only the fields the app uses. `Schema.NullOr(...)` for fields that can be `null`, `Schema.optional(...)` for fields that can be missing. Keep money amounts as strings, and convert to cents before adding them.
-4. Stay read-only. Before adding a method that writes, sends a message or spends credits, ask the user. Writes are never retried by default; a POST that only reads, like a HubSpot search, can pass `retries: 3`.
+4. Stay read-only. Before adding a method that writes, sends a message or spends credits, ask the user, then follow "Write Actions" below. Writes are never retried by default; a POST that only reads, like a HubSpot search, can pass `retries: 3`.
 5. Take plain JSON arguments (text, numbers, booleans, lists, objects): no `Date` or class instances, so the test command, oRPC and MCP can all pass them.
 6. Put a value that comes from outside (an id, a name) into the path with `encodeURIComponent`, and check its format in the oRPC contract, for example `z.uuid()` for Tableau ids.
 7. Return one page and its cursor, with a page-size option so a test can ask for two items. For every page at once, add a second method that loops (see below).
 8. Add the scope or permission the endpoint needs to the header comment.
 9. Run it with `pnpm integration` and fix what it reports.
+
+## Write Actions
+
+Some tools must change something elsewhere: add rows to a Sheet, post a report, prepare a campaign, open a pull request. `GoogleSheets.appendRows` is the example.
+
+1. Only for a need the user asked for, with their OK on what the tool will change.
+2. Prefer the reversible form: add a row rather than overwrite one, create a draft or a paused campaign rather than send it.
+3. Name the method after what it changes (`appendRows`, `createDraftCampaign`). Writes are not retried, since a retry could write twice; pass `retries` only when the service takes an idempotency key.
+4. Test it with `pnpm integration` on something harmless first: a copy of the Sheet, a test channel, a paused campaign. Show the user the result before wiring it into the app.
+5. In the app, write only from an explicit action: a button that says what it will do, then a toast with the result. When it matters, record what was written, by whom and when, in D1.
+
+## Slack
+
+To post to one channel (alerts, reports, reminders), use an incoming webhook: no shell needed.
+
+1. Someone allowed to add apps to the Slack workspace opens https://api.slack.com/apps, then "Create New App" > "From scratch", turns on "Incoming Webhooks", clicks "Add New Webhook to Workspace", picks the channel, and copies the webhook URL.
+2. The URL is a key: store it as `SLACK_WEBHOOK_URL` with the flow in "Connect A Service With The User".
+3. From server code, `await notify("…")` (`app/lib/notify.server.ts`) posts a message. Failed scheduled jobs and services that refuse their key post there on their own.
+4. To mention someone, write `<@MEMBER_ID>`: the member ID is in their Slack profile, under "Copy member ID".
+
+Reading Slack, or posting to many channels, needs a Slack app with a bot token: that is a new shell (see "Add A New Service").
 
 ## Call It From The App
 

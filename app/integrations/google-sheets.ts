@@ -1,5 +1,5 @@
 /**
- * Google Sheets: read spreadsheet cells with a service account.
+ * Google Sheets: read spreadsheet cells, and add rows, with a service account.
  *
  * Docs: https://developers.google.com/workspace/sheets/api/reference/rest
  * Discovery document (Google publishes no OpenAPI file):
@@ -10,8 +10,8 @@
  *   a Sheet shares it.
  * - Where: Google Cloud console > a project > enable "Google Sheets API" >
  *   IAM and admin > Service accounts > create one > Keys > Add key > JSON.
- *   Then share each Sheet with the service account's email as Viewer
- *   (untick "Notify people").
+ *   Then share each Sheet with the service account's email (untick
+ *   "Notify people"): as Viewer to read it, as Editor for `appendRows`.
  * - Pitfall: organizations created since May 2024 block key creation by
  *   default ("Key creation is not allowed on this service account"). An
  *   Organization Policy Administrator must exempt the project from
@@ -40,7 +40,9 @@ import { type CallOptions, IntegrationError, request, withToken } from "./http";
 const SERVICE = "Google Sheets";
 const BASE_URL = "https://sheets.googleapis.com/v4";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
-const SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
+// Read and write: what the service account may change is decided by how each
+// Sheet is shared with it (Viewer or Editor).
+const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 
 const ServiceAccountKey = Schema.fromJsonString(
 	Schema.Struct({ client_email: Schema.String, private_key: Schema.String }),
@@ -73,6 +75,36 @@ export class GoogleSheets {
 				values: Schema.optional(Schema.Array(Schema.Array(Schema.String))),
 			}),
 		).pipe(Effect.map((body) => body.values ?? []));
+	}
+
+	/**
+	 * WRITE EXAMPLE, only with the user's OK (see "Write Actions" in
+	 * INTEGRATIONS.md): adds rows after the last filled row of a range, as if
+	 * typed in. The Sheet must be shared with the service account as Editor.
+	 * Never retried, since a retry could add the rows twice.
+	 * Docs: https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets.values/append
+	 */
+	appendRows(
+		spreadsheetId: string,
+		range: string,
+		rows: ReadonlyArray<ReadonlyArray<string | number | boolean>>,
+	) {
+		return this.#call(
+			`/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}:append`,
+			Schema.Struct({
+				updates: Schema.Struct({ updatedRows: Schema.optional(Schema.Number) }),
+			}),
+			{
+				json: { values: rows },
+				method: "POST",
+				query: {
+					insertDataOption: "INSERT_ROWS",
+					valueInputOption: "USER_ENTERED",
+				},
+			},
+		).pipe(
+			Effect.map((body) => ({ addedRows: body.updates.updatedRows ?? 0 })),
+		);
 	}
 
 	#call<A>(path: string, schema: Schema.Decoder<A>, options: CallOptions = {}) {

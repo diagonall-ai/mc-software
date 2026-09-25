@@ -152,7 +152,7 @@ What the template can do, so you propose what works:
 
 - Everyone who has an account sees and changes all of the app's data; the invitation code is the gate, and there are no roles.
 - Someone who forgets their password asks the app's owner, and Claude gives them a new one (`node scripts/reset-password.mjs <email>`).
-- Scheduled jobs (syncs, weekly reports) run on the free plan. Automatic e-mails need the Workers Paid plan and a company domain: on the free plan, show the information in the app, add a button that prepares the e-mail in the user's mail app, or post to a Slack or Teams channel through a webhook.
+- Scheduled jobs (syncs, weekly reports) run on the free plan. Automatic e-mails need the Workers Paid plan and a company domain: on the free plan, show the information in the app, add a button that prepares the e-mail in the user's mail app, or post to a Slack channel.
 - AI features (summaries, classification, an assistant) only work on the deployed app, within a daily free allowance.
 - AI assistants such as Claude can connect to the app ("Serveur MCP" in the account menu) and use the actions chosen for them, with the user's rights. Offer a handful of useful actions, not everything.
 - When the user is not the administrator of a service to connect, write the message for their administrator (what to create, where, with which permission), and build with sample data or a CSV import until the key arrives.

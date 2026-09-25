@@ -282,6 +282,40 @@ assert.equal(
 	"https://oauth2.googleapis.com/token",
 );
 
+// Google Sheets appendRows: one POST to values:append, as typed in, never retried.
+const { GoogleSheets } = await import("../app/integrations/google-sheets.ts");
+const appendCalls: { url: string; method?: string; body?: string }[] = [];
+globalThis.fetch = async (input, init) => {
+	if (String(input).startsWith("https://oauth2.googleapis.com/token")) {
+		return Response.json({ access_token: "token", expires_in: 3600 });
+	}
+	appendCalls.push({
+		body: String(init?.body),
+		method: init?.method,
+		url: String(input),
+	});
+	return status(503);
+};
+const sheets = GoogleSheets.init({
+	serviceAccountKey: JSON.stringify({
+		client_email: "robot@example.iam.gserviceaccount.com",
+		private_key: pem,
+	}),
+});
+const appended = await Effect.runPromise(
+	Effect.result(sheets.appendRows("sheet-id", "Rejets!A:C", [["a", 1, true]])),
+);
+assert.ok(Result.isFailure(appended));
+assert.equal(appendCalls.length, 1);
+assert.equal(appendCalls[0].method, "POST");
+assert.match(
+	appendCalls[0].url,
+	/\/spreadsheets\/sheet-id\/values\/Rejets!A%3AC:append\?.*valueInputOption=USER_ENTERED/,
+);
+assert.deepEqual(JSON.parse(appendCalls[0].body ?? ""), {
+	values: [["a", 1, true]],
+});
+
 // Tableau: parallel views share one sign-in, and a session ended elsewhere
 // is replaced once.
 const seen: string[] = [];

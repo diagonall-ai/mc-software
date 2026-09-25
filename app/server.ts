@@ -6,8 +6,10 @@ import {
 	type RequestHandler,
 } from "@tanstack/react-start/server";
 import { getAgentByName } from "agents";
+import { onKeyRejected } from "~/integrations/http";
 import { resolveAuthSession } from "~/lib/api-auth";
 import { handler as authHandler } from "~/lib/auth-server";
+import { notify } from "~/lib/notify.server";
 import { runScheduledJobs } from "~/worker/scheduled";
 
 export { Assistant } from "~/agents/assistant";
@@ -16,6 +18,19 @@ export { Assistant } from "~/agents/assistant";
 // assistant chat, then hands every other request to TanStack Start. Durable
 // Object classes, such as Think agents, must be exported from this file.
 const startFetch = createStartHandler(defaultStreamHandler);
+
+// A refused key needs someone to create a new one: say so in Slack, at most
+// once an hour per service for each running copy of the app.
+const lastKeyAlert = new Map<string, number>();
+onKeyRejected(async (error) => {
+	if (Date.now() - (lastKeyAlert.get(error.service) ?? 0) < 3_600_000) {
+		return;
+	}
+	lastKeyAlert.set(error.service, Date.now());
+	await notify(
+		`${error.service} refuse sa clé d'accès : il faut sans doute en créer une nouvelle (${error.message})`,
+	);
+});
 
 export type ServerEntry = { fetch: RequestHandler<Register> };
 
