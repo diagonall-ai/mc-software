@@ -146,7 +146,9 @@ export const authServer = betterAuth({
 				enabled: false,
 			},
 		}),
-		jwt(),
+		// An explicit issuer: without SITE_URL (a first deploy) the OAuth provider
+		// would find no base URL at startup and take all sign-ins down with it.
+		jwt({ jwt: { issuer: MCP_ISSUER } }),
 		mcp({
 			loginPage: "/mcp/login",
 			consentPage: "/mcp/consent",

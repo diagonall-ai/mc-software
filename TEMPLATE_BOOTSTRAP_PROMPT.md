@@ -161,7 +161,22 @@ Do not ask about technical choices such as tables, frameworks, or libraries. Dec
 
 Then propose the application structure in plain language: the main sections and pages, what each one shows, the main things tracked and how they relate, which services are connected, and what an AI assistant connected to the app will be able to do. Ask the user to confirm or adjust it with `AskUserQuestion` before writing code.
 
-Save the agreed overview in `APP_BRIEF.md` at the project root. Future sessions read it to understand the business, so keep it up to date as the app grows.
+As soon as a service to connect is known, find out who can create its key (the header comment of its shell in `app/integrations/`). If it is not the user, write the message for that person now: what to create, where, with which permission. The wait then overlaps the building instead of blocking it.
+
+Save the agreed overview in `APP_BRIEF.md` at the project root, with these sections, written in the user's language:
+
+- **Business**: the need, in the user's words.
+- **Users**: who uses the app.
+- **What it tracks**: the main things and how they relate.
+- **Pages**: each page and what it is for.
+- **Services**: each connected service, what it provides, whose account the key belongs to, who can renew it, and when it expires.
+- **Assistant**: the MCP tools, and what an AI assistant can do with them.
+- **Automations**: scheduled jobs and Slack alerts.
+- **Hosting**: the web address, the Cloudflare account and plan, the D1 name and id.
+- **Next**: the agreed next steps and later ideas, most useful first.
+- **History**: dated, one line per change put online.
+
+Future sessions start from it, so keep it up to date as the app grows.
 
 ## How To Work
 

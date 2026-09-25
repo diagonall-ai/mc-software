@@ -2,7 +2,7 @@
 
 This repository is a TanStack Start app on Cloudflare (D1, Workers AI, Durable Objects) with auth, a REST API with OpenAPI docs, MCP tools for AI assistants, and a Mobile Club–branded UI.
 
-- If `APP_BRIEF.md` exists, this is the user's app: read the brief first, keep it up to date, and build their domain on top of the template.
+- If `APP_BRIEF.md` exists, this is the user's app: read the brief first, keep it up to date, and build their domain on top of the template. If the user's first message is vague (a greeting, "on continue"), recap in two lines where the app stands and propose the next two or three steps from its **Next** section. Remind them of any key that expires soon (its **Services** section).
 - If it does not exist, this is still the bare template. To turn it into an app, follow `TEMPLATE_BOOTSTRAP_PROMPT.md`. To improve the template itself, keep it generic: no app-specific domains, data, routes, or names.
 
 ## Working With The User
@@ -18,6 +18,7 @@ The user is not technical.
 - Check your work in the browser preview. With the dev server running, `pnpm seed:dev` creates a local account: `test@test.com` / `testtest`.
 - Numbers must be right, and the user cannot read code. Before calling a calculation done (totals, gaps, forecasts, matching, anything that decides money or stock), ask for a real past case with the result they know, such as last month's figures or a file they already processed by hand, and show that the tool gets the same result. When it differs, find out why before going on.
 - When a change is ready and checked, put it online: apply new migrations with `--remote`, run `pnpm run deploy`, and give the user the link and what to try.
+- When a feature is done: check its numbers against a known case, decide its MCP tools, offer a Slack alert if it runs jobs or uses a service, put it online, update `APP_BRIEF.md` (Pages, Services, Next, History), and tell the user what to try and what you suggest next.
 - If a deploy breaks the live app, roll back at once with `pnpm wrangler rollback` (it restores the previous code, not the database), tell the user, then fix it.
 - Someone forgot their password: `node scripts/reset-password.mjs <email>` gives the deployed account a temporary password, for the owner to pass on.
 
