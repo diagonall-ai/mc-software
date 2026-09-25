@@ -82,9 +82,9 @@ function McpInstructions({ onOpenApiKeys }: { onOpenApiKeys: () => void }) {
 			<DialogHeader>
 				<DialogTitle>Serveur MCP</DialogTitle>
 				<DialogDescription>
-					{PROJECT_NAME} expose toute son API en MCP : une fois connecté, un
-					agent IA (Claude, Codex, Cursor…) lit et agit sur vos données, avec
-					vos droits.
+					{PROJECT_NAME} propose ses actions principales en MCP : une fois
+					connecté, un agent IA (Claude, Codex, Cursor…) les utilise sur vos
+					données, avec vos droits.
 				</DialogDescription>
 			</DialogHeader>
 			<Field>

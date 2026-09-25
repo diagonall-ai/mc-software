@@ -99,7 +99,9 @@ async function handler(request: Request): Promise<Response> {
 	}
 
 	return withCors(
-		await mcpHandler.fetch(request, { authInfo: createAuthInfo(session) }),
+		await mcpHandler.fetch(request, {
+			authInfo: createAuthInfo(session, request),
+		}),
 	);
 }
 

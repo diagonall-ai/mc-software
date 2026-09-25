@@ -1,6 +1,6 @@
 # Agent Instructions
 
-This repository is a TanStack Start app on Cloudflare (D1, Workers AI, Durable Objects) with auth, an OpenAPI and MCP machine API, and a Mobile Club–branded UI.
+This repository is a TanStack Start app on Cloudflare (D1, Workers AI, Durable Objects) with auth, a REST API with OpenAPI docs, MCP tools for AI assistants, and a Mobile Club–branded UI.
 
 - If `APP_BRIEF.md` exists, this is the user's app: read the brief first, keep it up to date, and build their domain on top of the template.
 - If it does not exist, this is still the bare template. To turn it into an app, follow `TEMPLATE_BOOTSTRAP_PROMPT.md`. To improve the template itself, keep it generic: no app-specific domains, data, routes, or names.
@@ -24,7 +24,7 @@ The user is not technical.
 - Cloudflare only: Workers through Wrangler, D1 through `env.DB`, Workers AI through `env.AI`, Durable Objects. Do not add another host, database, backend, or model provider. For files, background jobs, or realtime, propose R2, Queues, cron triggers, or Durable Objects.
 - TanStack Start and TanStack Router: file routes in `app/routes/`, rendered on the server first.
 - Drizzle ORM and Drizzle Kit. Better Auth: email/password, API keys, MCP OAuth.
-- oRPC contract and router, with the OpenAPI docs and the MCP server generated from them.
+- oRPC contract and router, with the OpenAPI docs generated from them. Chosen procedures are also MCP tools.
 - shadcn/ui on Base UI (`base-vega`), Tailwind CSS v4, lucide icons.
 - TanStack AI for one-off AI tasks, Cloudflare Think for agents.
 - Third-party APIs: one Effect v4 shell class per service in `app/integrations/`.
@@ -37,6 +37,7 @@ The profile is built the way every feature should be. Copy it:
 - `app/db/profile.ts`: the repository. Drizzle queries, errors as `ORPCError`. A profile is personal, so it is scoped to its user; shared data is not (see Data And Auth).
 - `app/lib/orpc/contract.ts` and `router.ts`: `profile.get` and `profile.update`. Handlers get the user from `requireAuthenticatedActor`.
 - `app/routes/dashboard.profile.tsx`: loads through `context.getOrpc()`, saves through `getOrpc()`, then calls `router.invalidate()`.
+- `app/lib/mcp.ts`: the same procedures as MCP tools, `get_my_profile` and `update_my_profile`.
 - `app/agents/assistant.ts`: an agent tool that calls the same repository.
 - `app/lib/ai.server.ts`: a one-off AI task, served as `ai.brief`.
 
@@ -63,8 +64,10 @@ The profile is built the way every feature should be. Copy it:
 ## API, OpenAPI And MCP
 
 - A capability is a contract in `app/lib/orpc/contract.ts` plus a handler in `app/lib/orpc/router.ts`, always changed together, with its data logic in `app/db/`. No hand-written REST routes.
-- Paths start with `/api/`, except `/api/auth` and `/api/mcp`, which are taken. The API docs (`/api/docs`), the spec (`/api/openapi.json`), and the MCP tools (`/api/mcp`) follow the contract on their own.
-- MCP exposes fixed tools over the spec: `search-routes` and `call-route` everywhere, plus `execute` (a JavaScript sandbox) and `normalize-code` on Workers Paid, once the `worker_loaders` binding is enabled in `wrangler.jsonc`. Never add MCP tools by hand.
+- Paths start with `/api/`, except `/api/auth` and `/api/mcp`, which are taken. The API docs (`/api/docs`) and the spec (`/api/openapi.json`) follow the contract on their own.
+- MCP tools let AI assistants connected to the app (Claude, ChatGPT, Cursor) act on its data at `/api/mcp`. A tool is a procedure listed in `MCP_TOOLS` in `app/lib/mcp.ts`: one line, a snake_case verb for its name (`list_suppliers`), and the route's `description` written for an AI.
+- Be proactive but selective. When you build a feature, expose the few actions an assistant would really do for the user (look up, list, summarize, create or update a main record), about 5 to 15 tools for a whole app. Leave out settings, bulk, admin and destructive actions unless the user asks. When unsure, ask one plain question while agreeing on the feature, such as "Should Claude be able to add suppliers for you?".
+- Never add a generic tool that runs arbitrary API calls or code.
 - `.claude/rules/orpc.md` covers inputs, errors, and the descriptions agents read. It loads when you open those files.
 
 ## AI Features
@@ -77,7 +80,7 @@ The profile is built the way every feature should be. Copy it:
 
 ## Cloudflare
 
-- Apps run on the Workers Free plan unless the user moves to Workers Paid ($5 a month). Free gives 10 ms of CPU and 50 subrequests per request and per cron run, 5 cron triggers per account, and 10,000 AI neurons a day, with no Dynamic Workers (MCP `execute`) and no e-mail sending. Keep each request small, and say in money terms when a need requires Paid.
+- Apps run on the Workers Free plan unless the user moves to Workers Paid ($5 a month). Free gives 10 ms of CPU and 50 subrequests per request and per cron run, 5 cron triggers per account, and 10,000 AI neurons a day, with no Dynamic Workers (sandboxed code execution) and no e-mail sending. Keep each request small, and say in money terms when a need requires Paid.
 - Read bindings and secrets with `import { env } from "cloudflare:workers"`, in server code only.
 - A new Durable Object class is exported from `app/server.ts` and gets a binding and a new migration tag in `wrangler.jsonc`. Never edit a migration that was deployed.
 - After changing bindings, regenerate the types: `pnpm wrangler types worker-configuration.d.ts -c wrangler.jsonc --include-runtime false`, then `pnpm biome format --write worker-configuration.d.ts`.

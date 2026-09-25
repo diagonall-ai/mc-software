@@ -28,33 +28,4 @@ export const apiRouter = {
 			return await briefText(input.text);
 		}),
 	},
-	examples: {
-		workflow: orpc.examples.workflow.handler(async ({ context, input }) => {
-			requireAuthenticatedActor(context.auth);
-			const { params, query, body } = input;
-
-			return {
-				success: true,
-				received: {
-					exampleId: params.exampleId,
-					query: {
-						q: query.q,
-						limit: query.limit,
-						dryRun: query.dryRun,
-						channel: query.channel,
-					},
-					body: {
-						message: body.message,
-						priority: body.priority,
-					},
-				},
-				preview: [
-					`${params.exampleId}:${query.q}:1`,
-					`${params.exampleId}:${query.q}:2`,
-					`${params.exampleId}:${query.q}:${query.limit}`,
-				],
-				message: `Prepared ${query.channel} workflow for ${params.exampleId}${query.dryRun ? " (dry run)" : ""}.`,
-			};
-		}),
-	},
 } as const;

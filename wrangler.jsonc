@@ -6,18 +6,6 @@
   "main": "app/server.ts",
 
   // =============================================================================
-  // Worker Loader (Dynamic Workers)
-  // =============================================================================
-  // Off by default: Dynamic Workers need the Workers Paid plan, and a free
-  // account refuses the deploy. Without it, MCP clients call routes one at a
-  // time with the `call-route` tool. On Workers Paid, uncomment the line below
-  // to add the `execute` tool, which runs JavaScript in a sandbox (no secrets
-  // go in; route calls come back to the app through Workers RPC).
-  //
-  // Reference: https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/
-  // "worker_loaders": [{ "binding": "LOADER" }],
-
-  // =============================================================================
   // D1 Database
   // =============================================================================
   // Created during bootstrap with `pnpm wrangler d1 create <app-slug> --location weur`,

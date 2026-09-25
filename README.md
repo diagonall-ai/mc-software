@@ -66,7 +66,7 @@ pnpm deploy:dry-run
 pnpm run deploy
 ```
 
-Pipe secret values in: without a terminal, `wrangler secret put` stores an empty value. After the first deploy, pipe the printed address into `SITE_URL` the same way: MCP sign-in (OAuth) needs it. `TRUSTED_ORIGINS` is only for extra addresses. The app runs on the Workers Free plan; the MCP code sandbox (`worker_loaders` in `wrangler.jsonc`) needs Workers Paid. Do not store secrets in `wrangler.jsonc`.
+Pipe secret values in: without a terminal, `wrangler secret put` stores an empty value. After the first deploy, pipe the printed address into `SITE_URL` the same way: MCP sign-in (OAuth) needs it. `TRUSTED_ORIGINS` is only for extra addresses. The app runs on the Workers Free plan. Do not store secrets in `wrangler.jsonc`.
 
 ## Project Structure
 
@@ -79,7 +79,7 @@ Pipe secret values in: without a terminal, `wrangler secret put` stores an empty
 │   ├── lib/
 │   │   ├── auth-server.ts      # Better Auth backed by D1/Drizzle
 │   │   ├── orpc/               # Canonical contract and implementation
-│   │   └── mcp.ts              # OpenAPI-driven MCP bridge
+│   │   └── mcp.ts              # MCP tools: chosen oRPC procedures
 │   ├── routes/                 # TanStack Router routes and loaders
 │   ├── server.ts               # Worker entry: MCP OAuth discovery, agents, then TanStack Start
 │   └── worker/                 # Cloudflare Worker examples/modules
@@ -106,7 +106,7 @@ The app exposes:
 
 - `GET /api/openapi.json` for the OpenAPI spec
 - `GET /api/docs` for the API reference
-- `/api/mcp` for MCP
+- `/api/mcp` for MCP: the tools listed in `app/lib/mcp.ts`
 - `/api/auth/*` for Better Auth
 
 REST and MCP can authenticate with Better Auth API keys. MCP OAuth metadata is served from the app origin.

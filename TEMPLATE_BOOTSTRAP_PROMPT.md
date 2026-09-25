@@ -144,6 +144,7 @@ Interview the user with the `AskUserQuestion` tool over several rounds, usually 
 - the main things the app keeps track of, such as clients, orders, products, appointments, or documents
 - the main screens they picture and what they do on each one
 - external services or APIs to connect, such as spreadsheets, a helpdesk, a CRM, or accounting
+- whether they use an AI assistant such as Claude or ChatGPT, and what they would ask it to do with the app (look something up, add a record, prepare a summary): those actions become the app's MCP tools
 - existing data to bring in, such as a spreadsheet or an export from another tool
 - anything that should happen automatically, such as reminders, scheduled reports, or syncs
 
@@ -153,11 +154,12 @@ What the template can do, so you propose what works:
 - Someone who forgets their password asks the app's owner, and Claude gives them a new one (`node scripts/reset-password.mjs <email>`).
 - Scheduled jobs (syncs, weekly reports) run on the free plan. Automatic e-mails need the Workers Paid plan and a company domain: on the free plan, show the information in the app, add a button that prepares the e-mail in the user's mail app, or post to a Slack or Teams channel through a webhook.
 - AI features (summaries, classification, an assistant) only work on the deployed app, within a daily free allowance.
+- AI assistants such as Claude can connect to the app ("Serveur MCP" in the account menu) and use the actions chosen for them, with the user's rights. Offer a handful of useful actions, not everything.
 - When the user is not the administrator of a service to connect, write the message for their administrator (what to create, where, with which permission), and build with sample data or a CSV import until the key arrives.
 
 Do not ask about technical choices such as tables, frameworks, or libraries. Decide those yourself.
 
-Then propose the application structure in plain language: the main sections and pages, what each one shows, the main things tracked and how they relate, and which services are connected. Ask the user to confirm or adjust it with `AskUserQuestion` before writing code.
+Then propose the application structure in plain language: the main sections and pages, what each one shows, the main things tracked and how they relate, which services are connected, and what an AI assistant connected to the app will be able to do. Ask the user to confirm or adjust it with `AskUserQuestion` before writing code.
 
 Save the agreed overview in `APP_BRIEF.md` at the project root. Future sessions read it to understand the business, so keep it up to date as the app grows.
 

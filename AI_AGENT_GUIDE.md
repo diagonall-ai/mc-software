@@ -12,7 +12,7 @@ Step-by-step recipes for this repository. `CLAUDE.md` has the rules; this guide 
 ## How The App Is Layered
 
 - `app/routes/`: pages, route guards, loaders, skeletons. No database code and no business rules.
-- `app/lib/orpc/`: the capabilities that users, agents, and API clients call. The OpenAPI docs and the MCP server are generated from it.
+- `app/lib/orpc/`: the capabilities that users, agents, and API clients call. The OpenAPI docs are generated from it, and chosen procedures are MCP tools (`app/lib/mcp.ts`).
 - `app/db/`: D1 tables, repositories, ownership checks.
 - `app/agents/` and `app/lib/ai.server.ts`: AI on Workers AI.
 - `app/integrations/`: third-party API shells.
@@ -29,7 +29,8 @@ Example: a list of suppliers the user tracks.
 3. **Capability.** Add `suppliers.list`, `suppliers.create`, and so on to `app/lib/orpc/contract.ts`, with paths under `/api/suppliers`. Implement them in `app/lib/orpc/router.ts`, starting each handler with `requireAuthenticatedActor`.
 4. **Page.** Create `app/routes/dashboard.suppliers.tsx` like `app/routes/dashboard.profile.tsx`: loader through `context.getOrpc()`, header, skeleton, error component. Mutations call `getOrpc()`, then `router.invalidate()`.
 5. **Navigation.** Add the page to `dashboardLinks` in `app/routes/dashboard.tsx` and to the ⌘K list in `app/components/dashboard/sidebar-command-bar.tsx`.
-6. **Check.** Run the verification in `CLAUDE.md`, open the page in the preview, and try the new routes at `/api/docs`.
+6. **MCP.** If an assistant should use it, add those procedures to `MCP_TOOLS` in `app/lib/mcp.ts`, for example `list_suppliers: apiRouter.suppliers.list`. Only the actions an assistant would really do; see CLAUDE.md.
+7. **Check.** Run the verification in `CLAUDE.md`, open the page in the preview, try the new routes at `/api/docs`, and run `pnpm smoke`.
 
 A minimal page:
 
@@ -105,14 +106,14 @@ MCP without credentials must refuse:
 curl -i "http://localhost:3934/api/mcp"
 ```
 
-With an API key (create one from the account menu, "Clés API"), call a route through MCP:
+With an API key (create one from the account menu, "Clés API"), call a tool through MCP:
 
 ```bash
 curl -X POST "http://localhost:3934/api/mcp" \
   -H "Authorization: Bearer bd_your_key" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"call-route","arguments":{"method":"GET","path":"/api/profile"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_my_profile","arguments":{}}}'
 ```
 
 `pnpm smoke` (dev server running, seed account) runs the whole check end to end, on both MCP protocol versions: API keys in both headers, the MCP OAuth flow (sign-in, consent, refresh token), the MCP tools, and 401s for bad credentials. For a deployed app: `EMAIL=... PASSWORD=... pnpm smoke https://your-app.workers.dev`.

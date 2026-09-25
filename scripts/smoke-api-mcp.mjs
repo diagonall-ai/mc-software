@@ -116,30 +116,36 @@ async function testRest(key) {
 		headers: { authorization: `Bearer ${key}` },
 	});
 	check("API accepts the key as Authorization: Bearer", r.ok, r.status);
-	r = await fetch(
-		`${BASE}/api/examples/sample/workflow?q=hello&limit=2&dryRun=true`,
-		{
-			method: "POST",
-			headers: {
-				authorization: `Bearer ${key}`,
-				"content-type": "application/json",
-			},
-			body: JSON.stringify({ message: "hello", priority: "high" }),
-		},
-	);
-	body = await r.json().catch(() => null);
-	check(
-		"API POST with path, query and body",
-		r.ok,
-		`${r.status} ${short(JSON.stringify(body), 90)}`,
-	);
-	r = await fetch(`${BASE}/api/examples/sample/workflow?q=hello&limit=999`, {
-		method: "POST",
+	const current = await (
+		await fetch(`${BASE}/api/profile`, {
+			headers: { authorization: `Bearer ${key}` },
+		})
+	).json();
+	r = await fetch(`${BASE}/api/profile`, {
+		method: "PATCH",
 		headers: {
 			authorization: `Bearer ${key}`,
 			"content-type": "application/json",
 		},
-		body: JSON.stringify({ message: "" }),
+		body: JSON.stringify({
+			name: current.name,
+			username: current.username ?? "",
+			bio: current.bio ?? "",
+		}),
+	});
+	body = await r.json().catch(() => null);
+	check(
+		"API PATCH with a JSON body",
+		r.ok,
+		`${r.status} ${short(JSON.stringify(body), 90)}`,
+	);
+	r = await fetch(`${BASE}/api/profile`, {
+		method: "PATCH",
+		headers: {
+			authorization: `Bearer ${key}`,
+			"content-type": "application/json",
+		},
+		body: JSON.stringify({ name: "x".repeat(81), username: "", bio: "" }),
 	});
 	body = await r.json().catch(() => null);
 	check(
@@ -162,65 +168,42 @@ async function connect(era, label, options) {
 }
 
 async function exerciseTools(client, label) {
-	const search = await client.callTool({
-		name: "search-routes",
-		arguments: { query: "profile" },
-	});
+	const { tools } = await client.listTools();
+	const profileTool = tools.find((tool) => tool.name === "get_my_profile");
 	check(
-		`MCP search-routes finds routes (${label})`,
-		!search.isError && /profile/i.test(text(search)),
-		short(text(search)),
+		`MCP lists the app tools, read-only ones marked (${label})`,
+		profileTool?.annotations?.readOnlyHint === true &&
+			tools.some((tool) => tool.name === "update_my_profile"),
+		tools.map((tool) => tool.name).join(", "),
 	);
-	const get = await client.callTool({
-		name: "call-route",
-		arguments: { method: "GET", path: "/api/profile" },
-	});
+	const get = await client.callTool({ name: "get_my_profile", arguments: {} });
 	check(
-		`MCP call-route calls the API (${label})`,
+		`MCP get_my_profile returns the profile (${label})`,
 		!get.isError && /email/i.test(text(get)),
 		short(text(get)),
 	);
-	const postRoute = await client.callTool({
-		name: "call-route",
+	const profile = JSON.parse(text(get));
+	const update = await client.callTool({
+		name: "update_my_profile",
 		arguments: {
-			method: "POST",
-			path: "/api/examples/{exampleId}/workflow",
-			params: { exampleId: "sample" },
-			query: { q: "hi" },
-			body: { message: "hello from MCP" },
+			name: profile.name,
+			username: profile.username ?? "",
+			bio: profile.bio ?? "",
 		},
 	});
 	check(
-		`MCP call-route can POST with params, query, body (${label})`,
-		!postRoute.isError && /"status": 200/.test(text(postRoute)),
-		short(text(postRoute)),
+		`MCP update_my_profile saves (${label})`,
+		!update.isError && /email/i.test(text(update)),
+		short(text(update)),
 	);
-
-	// `execute` only exists on Workers Paid, with the LOADER binding.
-	const { tools } = await client.listTools();
-	if (!tools.some((tool) => tool.name === "execute")) {
-		return;
-	}
-	const exec = await client.callTool({
-		name: "execute",
-		arguments: { code: "await api.profile.get()" },
+	const rejected = await client.callTool({
+		name: "update_my_profile",
+		arguments: { name: profile.name, username: "x", bio: "" },
 	});
 	check(
-		`MCP execute calls the API in the sandbox (${label})`,
-		!exec.isError && /email/i.test(text(exec)),
-		short(text(exec)),
-	);
-	const post = await client.callTool({
-		name: "execute",
-		arguments: {
-			code: 'await api.examples.exampleId.workflow.post({ params: { exampleId: "sample" }, query: { q: "hi" }, body: { message: dictionary.message } })',
-			dictionary: { message: "hello from MCP" },
-		},
-	});
-	check(
-		`MCP execute can POST with params, query, body (${label})`,
-		!post.isError,
-		short(text(post)),
+		`MCP tool errors reach the assistant as text (${label})`,
+		rejected.isError === true && /username/i.test(text(rejected)),
+		short(text(rejected)),
 	);
 }
 

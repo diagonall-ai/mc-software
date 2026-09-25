@@ -180,6 +180,5 @@ pnpm run deploy
 - If auth says `BETTER_AUTH_SECRET` is missing, `.dev.vars` or Worker secrets are not configured for the runtime being used.
 - If D1 queries fail locally, confirm local migrations were applied with `--local`.
 - If sign-up says the invitation code is wrong, confirm `SUPER_ADMIN_SIGNUP_PASSWORD` was set with a pipe (`pnpm wrangler secret list` shows it exists). If MCP clients cannot sign in, confirm `SITE_URL` is the exact public address (and add a custom domain to `TRUSTED_ORIGINS`).
-- If the deploy fails with error 10195, the account is on the Free plan and `worker_loaders` is enabled: comment it out again.
 - If a route needs first-paint data, put it in the TanStack loader and return any dashboard header metadata from that loader.
 - If `pnpm run doctor` reports multiple `DB` bindings, `d1 create --update-config` appended a second one: keep a single `DB` entry with the new name and id.
