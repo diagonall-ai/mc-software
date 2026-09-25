@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "pnpm build && wrangler deploy -c dist/server/wrangler.json",
+    "deploy": "node scripts/deploy.mjs",
     "deploy:dry-run": "pnpm build && wrangler deploy --dry-run -c dist/server/wrangler.json",
     "doctor": "node scripts/doctor.mjs",
     "doctor:full": "node scripts/doctor.mjs --full",

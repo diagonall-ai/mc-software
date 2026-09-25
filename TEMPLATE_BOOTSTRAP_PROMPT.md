@@ -96,7 +96,7 @@ Your shell has no terminal, so always pipe the value into `wrangler secret put`:
   - macOS and Linux: `printf '%s' 'soleil-velo-42' | pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD`
   - Windows: `'soleil-velo-42' | pnpm wrangler secret put SUPER_ADMIN_SIGNUP_PASSWORD`
 
-`SITE_URL` gets its value right after the first deploy (step 8), once the address is known. `TRUSTED_ORIGINS` is only for extra addresses, such as a custom domain. `.dev.vars` keeps its example values for local use.
+`SITE_URL` gets its value from the first deploy (step 8), once the address is known. `TRUSTED_ORIGINS` is only for extra addresses, such as a custom domain. `.dev.vars` keeps its example values for local use.
 
 ## 7. Check It Locally
 
@@ -115,7 +115,7 @@ Plain `pnpm deploy` is a different pnpm command.
 - If the account has no workers.dev subdomain yet, Wrangler stops and prints a link to register one. Open it for the user, suggest a name such as `mobileclub-<firstname>`, and deploy again once they confirm. A new subdomain can take a few minutes to answer.
 - If Wrangler asks to verify the e-mail address, the user clicks the link in the Cloudflare e-mail, then deploy again.
 
-Set `SITE_URL` to the address the deploy printed, with a pipe: `printf '%s' 'https://<app>.<subdomain>.workers.dev' | pnpm wrangler secret put SITE_URL` (Windows: `'https://…' | pnpm wrangler secret put SITE_URL`). Sign-in works without it, but AI tools that connect to the app through MCP, such as Claude or Cursor, need it.
+The first deploy stores the printed address as the `SITE_URL` secret on its own (`SITE_URL set to …`): AI tools that connect through MCP, such as Claude or Cursor, need it. If that line is missing, set it yourself: `printf '%s' 'https://<app>.<subdomain>.workers.dev' | pnpm wrangler secret put SITE_URL`. Never ask the user to do it.
 
 Open the deployed address in the browser preview and have the user create their own account there, in the "Créer un compte" tab, with the invitation code. This proves that sign-up and sign-in work in production. On the free plan, an occasional "Worker exceeded resource limits" on sign-in can happen: retry once, and if it persists, tell the user that the Workers Paid plan ($5 a month) removes the limit.
 
