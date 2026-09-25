@@ -76,6 +76,16 @@ For summarizing, classifying, extracting, or drafting, without memory or tools.
 2. Call it from an oRPC handler, like `ai.brief` in `app/lib/orpc/router.ts`, or from the server code that needs it, such as a repository saving a record.
 3. Tell the user it only works once deployed. Deploy with `pnpm run deploy` and test it there.
 
+## Import A File
+
+For a spreadsheet, a PDF, a Word document or a photo the user uploads: a budget, an export, a scanned invoice.
+
+1. **Page.** A `FileUpload` from `app/components/ui/file-upload.tsx` and a button. Send the file through the typed client, `await getOrpc().<feature>.import({ file })`: oRPC uploads it on its own.
+2. **Capability.** An input like `files.read`'s: `z.object({ file: z.file().max(10 * 1024 * 1024) })`. In the handler, `readFileAsText(file)` from `app/lib/files.server.ts` returns the text: CSV and text files as they are (locally too), and PDF, Excel, Word and images as Markdown through Workers AI, on the deployed app only.
+3. **Data.** Parse a CSV yourself; French files often use `;` and decimal commas. For a document, pass the text to a TanStack AI `chat()` with an `outputSchema` for the rows or fields, like `briefText`. Check the result on a file the user already processed by hand.
+4. **Storage.** Save what the screens need in D1 through a repository. The file itself is not kept.
+5. **Originals.** To keep files (signed documents, IDs), add an R2 bucket: `pnpm wrangler r2 bucket create <app-slug>-files`, an `r2_buckets` binding in `wrangler.jsonc`, then regenerate the types. Store each file's key and details in D1. R2 must be turned on once in the Cloudflare dashboard, which may ask for a payment method even for the free 10 GB: send the user there.
+
 ## Give The Assistant A Tool
 
 1. In `getTools()` in `app/agents/assistant.ts`, add a `tool({ description, inputSchema, execute })`. `execute` calls an `app/db/` repository with `this.name` as the user id.

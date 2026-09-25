@@ -67,4 +67,17 @@ export const apiContract = {
 			.input(z.object({ text: z.string().min(1).max(20000) }))
 			.output(textBriefSchema),
 	},
+	files: {
+		read: oc
+			.route({
+				method: "POST",
+				path: "/api/files/read",
+				summary: "Read a document as text",
+				description:
+					"Reads an uploaded file and returns its text: CSV and text files as they are; PDF, Excel, Word and images as Markdown (Workers AI, deployed app only). Up to 10 MB. Send it as multipart/form-data in a `file` field.",
+				tags: ["files"],
+			})
+			.input(z.object({ file: z.file().max(10 * 1024 * 1024) }))
+			.output(z.object({ name: z.string(), text: z.string() })),
+	},
 } as const;

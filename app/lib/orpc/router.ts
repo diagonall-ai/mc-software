@@ -1,6 +1,7 @@
 import { implement } from "@orpc/server";
 import { getViewerProfile, updateViewerProfile } from "~/db/profile";
 import { briefText } from "~/lib/ai.server";
+import { readFileAsText } from "~/lib/files.server";
 import { requireAuthenticatedActor } from "~/lib/orpc/authorization";
 import type { ApiContext } from "~/lib/orpc/context";
 import { apiContract } from "~/lib/orpc/contract";
@@ -26,6 +27,12 @@ export const apiRouter = {
 		brief: orpc.ai.brief.handler(async ({ context, input }) => {
 			requireAuthenticatedActor(context.auth);
 			return await briefText(input.text);
+		}),
+	},
+	files: {
+		read: orpc.files.read.handler(async ({ context, input }) => {
+			requireAuthenticatedActor(context.auth);
+			return { name: input.file.name, text: await readFileAsText(input.file) };
 		}),
 	},
 } as const;

@@ -50,6 +50,7 @@ The profile is built the way every feature should be. Copy it:
 - Every handler checks the user with `requireAuthenticatedActor` and records who created or changed a row (`createdBy`, `updatedBy`) from it. Never trust a user id sent by the browser.
 - Scope to the user only what is personal: the profile, API keys, the assistant's chat. There are no roles: every signed-in user can see and change everything else.
 - Keep email/password sign-in, API keys, MCP OAuth, the invitation code check, and trusted origins working.
+- Uploaded files: `readFileAsText()` in `app/lib/files.server.ts` reads CSV and text files (also locally), and PDF, Excel, Word and images through Workers AI once deployed. The `files.read` route shows the upload pattern; see "Import A File" in `AI_AGENT_GUIDE.md`. Keep original files only when needed, in R2.
 - `.claude/rules/database.md` covers tables and migrations. It loads when you open those files.
 
 ## Pages And The App Shell
